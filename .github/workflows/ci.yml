@@ -1,44 +1,81 @@
 name: CI
-
-on:
-  push:
-    branches: [main]
-  pull_request:
-
-concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+on: [push, pull_request]
 
 jobs:
   check:
     runs-on: ubuntu-latest
 
-    defaults:
-      run:
-        working-directory: apps/web
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 22
 
-      - name: Install
-        run: pnpm install --frozen-lockfile
+      # pnpm 설치(캐시 설정 안 씀: 지금은 캐시 때문에 계속 깨지고 있으니 일단 제거)
+      - name: Enable corepack + pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@9.15.0 --activate
+          pnpm -v
+          node -v
 
+      # 레포 구조 확인(이게 제일 중요)
+      - name: Show repo structure
+        run: |
+          pwd
+          ls -la
+          echo "---- apps ----"
+          ls -la apps || true
+          echo "---- apps/web ----"
+          ls -la apps/web || true
+          echo "---- apps/web/package.json ----"
+          cat apps/web/package.json || true
+
+      # 설치는 "레포 루트"에서 시도(워크스페이스면 루트에서 해야 정상)
+      - name: Install deps
+        run: |
+          if [ -f "pnpm-lock.yaml" ]; then
+            echo "pnpm-lock.yaml found at repo root"
+            pnpm install --frozen-lockfile
+          elif [ -f "apps/web/pnpm-lock.yaml" ]; then
+            echo "pnpm-lock.yaml found at apps/web"
+            cd apps/web
+            pnpm install --frozen-lockfile
+          else
+            echo "ERROR: pnpm-lock.yaml not found (root or apps/web)"
+            exit 1
+          fi
+
+      # 아래 4개는 apps/web에서 실행(모노레포든 아니든 안전)
       - name: Typecheck
-        run: pnpm tsc --noEmit
+        run: |
+          if [ -d "apps/web" ]; then
+            pnpm -C apps/web tsc --noEmit
+          else
+            pnpm tsc --noEmit
+          fi
 
       - name: Lint
-        run: pnpm eslint . --max-warnings 0
+        run: |
+          if [ -d "apps/web" ]; then
+            pnpm -C apps/web eslint . --max-warnings 0
+          else
+            pnpm eslint . --max-warnings 0
+          fi
+
+      - name: Test
+        run: |
+          if [ -d "apps/web" ]; then
+            pnpm -C apps/web vitest run
+          else
+            pnpm vitest run
+          fi
 
       - name: Build
-        run: pnpm next build
+        run: |
+          if [ -d "apps/web" ]; then
+            pnpm -C apps/web next build
+          else
+            pnpm next build
+          fi
