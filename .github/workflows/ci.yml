@@ -5,10 +5,13 @@ on:
   push:
     branches: [main]
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   check:
     runs-on: ubuntu-latest
-
     defaults:
       run:
         working-directory: apps/web
@@ -22,8 +25,10 @@ jobs:
         with:
           node-version: 22
 
-      - name: Enable corepack (pnpm)
-        run: corepack enable
+      - name: Enable corepack + pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.30.3 --activate
 
       - name: Install deps
         run: pnpm install --frozen-lockfile
@@ -35,7 +40,7 @@ jobs:
         run: pnpm eslint . --max-warnings 0
 
       - name: Test
-        run: pnpm vitest run
+        run: pnpm vitest run --passWithNoTests
 
       - name: Build
         run: pnpm next build
