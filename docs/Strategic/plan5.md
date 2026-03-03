@@ -87,6 +87,10 @@ L3: 엔트리포인트
 - 순환 참조 절대 금지
 - L1(서비스)에서 NextRequest/NextResponse import 절대 금지
 
+> **[Rev.5-R3]** Architecture Gate 연결 — architecture-spec.md 제5조 구조 게이트, process-checklist.md §5 FAIL 조건과 정렬. 위반 시 Phase 진행 금지 문구 추가.
+
+- **Architecture Gate**: 위 의존성 규칙(Architecture Spec 제2조) 위반 시 Phase 진행 금지. Process Checklist §5 구조 게이트 FAIL 자동 적용.
+
 ### 1.2 디렉토리 구조
 
 ```
@@ -196,6 +200,10 @@ Rev.2의 일률적 100줄에서 역할별 세분화.
 - 100줄(라우트): 인증(5줄) + 검증(5줄) + 위임(10줄) + 에러처리(10줄) = 30줄 본체 + 70줄 여유
 - 150줄(서비스): settlement.service의 generate(60) + confirm(25) + pay(30) = 115줄 → 150줄 내 수용
 
+> **[Rev.5-R4]** Simplify 트리거 연결 — process-checklist.md 5-1절 Simplify 개입 발동 조건과 정렬. 줄수 초과가 게이트 미연결이라 Simplify 트리거로 연결.
+
+**줄수 초과는 구조 분해 검토(Simplify Trigger) 대상이다.** Phase 재오픈 2회 이상 / PR 3회 이상 수정 / Ralph Loop 70회 도달 시 Simplify 보고 의무 적용.
+
 ---
 
 ## 3. Phase 0: DB 마이그레이션 + 인덱스 + RLS
@@ -203,8 +211,12 @@ Rev.2의 일률적 100줄에서 역할별 세분화.
 
 ### 3.0 Preflight SQL + 데이터 정리 런북 (SEC/OPS 보강)
 
-> **목표**: UNIQUE/RLS/RPC 적용 전에 “현재 데이터가 제약을 만족하는지”를 **팩트(쿼리 결과)**로 확인하고, 정리 정책을 명시한다.  
+> **목표**: UNIQUE/RLS/RPC 적용 전에 "현재 데이터가 제약을 만족하는지"를 **팩트(쿼리 결과)**로 확인하고, 정리 정책을 명시한다.  
 > **원칙**: 정리(삭제/병합)는 자동화하지 않는다. **탐지 쿼리 → 스냅샷 저장 → 수동 승인 후 정리**.
+
+> **[Rev.5-R1]** Phase Gate 연결 — phase-checklists.md 0.2 산출물 증거(DB 스냅샷 필수) 및 0.3 FAIL 조건("Preflight 없이 제약 추가 → FAIL")과 정렬.
+
+**이 Preflight는 Phase 0 PASS의 선행 필수 조건이다. 스냅샷 미첨부 시 Phase FAIL로 간주한다.**
 
 #### 3.0.1 중복 탐지 (UNIQUE 5건 대상)
 
@@ -263,7 +275,7 @@ LIMIT 200;
 
 #### 3.0.3 정리 정책(반드시 문서화)
 
-- “살릴 row”의 기준을 먼저 고정한다. (예: created_at 최신, status 우선순위 등)
+- "살릴 row"의 기준을 먼저 고정한다. (예: created_at 최신, status 우선순위 등)
 - 삭제/병합 실행 전, 대상 row id 목록을 별도 파일(예: `v3-preflight-fixes.sql`)로 저장하고 리뷰 승인 후 실행.
 - 실행 직전 **DB 백업/스냅샷**(또는 Supabase Point-in-time/backup)을 확인한다.
 
@@ -293,6 +305,7 @@ ALTER TABLE consignment_requests
 -- [사전 조건] 각 테이블 중복 확인 쿼리 실행 필수
 -- [사전 조건] 외래키 참조 테이블 4개(consignment_requests, sold_items,
 --            settlement_queue, st_products) 고아 참조 정리
+-- [Rev.5-R5] 운영 중 DB에 적용 시 CREATE UNIQUE INDEX CONCURRENTLY 사용 고려 (deep-checklist.md 2.2 "CONCURRENTLY 인덱스 사용"과 정렬)
 
 ALTER TABLE settlement_queue
   ADD CONSTRAINT uq_settlement_queue_match UNIQUE (match_id);
@@ -340,12 +353,9 @@ CREATE POLICY consignment_anon_read ON consignment_requests
   FOR SELECT TO anon
   USING (adjustment_token IS NOT NULL AND adjustment_token = current_setting('request.headers', true)::json->>'x-adjustment-token');
 
-ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
-CREATE POLICY orders_anon_read ON orders
-  FOR SELECT TO anon USING (true);
-CREATE POLICY orders_anon_update ON orders
-  FOR UPDATE TO anon
-  USING (status = 'IMAGE_COMPLETE');
+-- [Rev.5-F1] orders RLS 정책은 §3.1.8(토큰 기반)으로 일원화.
+-- USING(true)는 architecture-spec.md "USING(true) 없음" 및 phase-checklists FAIL 조건에 위배.
+-- orders RLS는 아래 §3.1.8의 010_public_orders_rls.sql에서만 정의한다.
 ```
 
 #### 3.1.5 RPC 3개 (빈 배열 엣지 케이스 보강)
@@ -497,7 +507,7 @@ CREATE TABLE _batch_progress (
 #### 3.1.8 [SEC/OPS 보강] Public 접근(orders) 토큰 기반 RLS로 축소
 
 > **문제**: `orders_anon_read USING (true)`는 orders 전체 읽기를 허용해 과잉이다.  
-> **해결**: Public 기능이 요구하는 “해당 row만” 접근하도록 **토큰 기반**으로 제한한다.
+> **해결**: Public 기능이 요구하는 "해당 row만" 접근하도록 **토큰 기반**으로 제한한다.
 
 ```sql
 -- 010_public_orders_rls.sql (SEC/OPS)
@@ -515,7 +525,7 @@ DROP POLICY IF EXISTS orders_anon_update ON orders;
 
 -- Supabase(PostgREST)에서 request header를 RLS에 전달하는 방식은 환경에 따라 다르므로,
 -- 표준화된 함수/세팅을 프로젝트에서 1개로 확정해야 한다.
--- 아래는 “요청 헤더 기반 토큰 전달”을 전제로 한 예시이다.
+-- 아래는 "요청 헤더 기반 토큰 전달"을 전제로 한 예시이다.
 CREATE POLICY orders_anon_read ON orders
   FOR SELECT TO anon
   USING (
@@ -533,7 +543,15 @@ CREATE POLICY orders_anon_update ON orders
 ```
 
 - **중요**: `current_setting('request.headers', true)` 전달 방식은 실제 Supabase 환경에서 동작을 **반드시 실측**한다.  
-  동작이 불안정하면, “토큰을 헤더가 아니라 쿼리 파라미터/바디로 받고 서버(Route)에서 service_role로 검증 후 업데이트” 방식으로 전환한다.
+  동작이 불안정하면, "토큰을 헤더가 아니라 쿼리 파라미터/바디로 받고 서버(Route)에서 service_role로 검증 후 업데이트" 방식으로 전환한다.
+
+> **[Rev.5-S2]** 토큰 전달 방식 전환 기준 명시 — "불안정하면 전환"이 애매하므로 자동 판정 가능한 기준 추가.
+
+**전환 판정 기준**: 실측 3회 중 1회라도 `current_setting('request.headers', true)` 파싱 실패 시, RLS 방식 폐기 → Route 내 service_role 검증 방식 채택. 이 기준은 Phase 0 RLS 실측 테스트에서 1회 검증한다.
+
+> **[Rev.5-R2]** Ralph Loop 연결 — deep-checklist.md §1 "L3는 단일 PASS로 Merge 불가" 규칙이 Plan에 누락. DB/RLS/RPC 변경이 포함된 Phase 0에 Ralph Loop 적용 의무 명시.
+
+**이 Phase는 Ralph Loop L3 안정성 반복 규칙 적용 대상이다. 동시성 3 / RLS 3 / 운영 2 시나리오 충족 + 3연속 PASS 확보 후에만 다음 Phase 진행.**
 
 ### 3.2 Phase 0 검증 게이트 ([Rev.4] 10개 — Rev.3의 8개에서 +2)
 ```
@@ -553,6 +571,9 @@ CREATE POLICY orders_anon_update ON orders
   - anon(토큰 없음)으로 orders/consignment 조회 → 0 row 또는 403
   - 토큰 일치 시 해당 row만 조회 가능
   - anon update 시 토큰 불일치/상태 불일치 → 0 row 또는 403
+□ [Rev.5-S1] Phase 0은 L3 변경으로 Ralph Loop 적용 대상이다 (동시성 3 / RLS 3 / 운영 2 + 3연속 PASS 확보)
+□ [Rev.5-S3] USING(true) 정책 0건 확인: SELECT policyname, qual FROM pg_policies WHERE qual::text LIKE '%true%'; → 0행
+□ [Rev.5-O2] RPC 원자성 검증: create_order_with_items 중간 실패 시 전체 롤백 확인 (deep-checklist.md §3.3 원자성)
 ```
 
 ---
@@ -604,8 +625,9 @@ export const UuidSchema = z.string().uuid()
 export const DateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
 export const PositiveAmountSchema = z.number().positive()
 export const PaginationSchema = z.object({
-  page: z.number().int().min(1).default(1),
-  limit: z.number().int().min(1).max(100).default(20),
+  // [Rev.5-R9] z.coerce.number() — Next.js querystring은 문자열이므로 coerce 필요. 공용 PaginationSchema는 query 파라미터용이므로 자동 변환.
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
 })
 // 5개만. 나머지는 Phase 5에서 각 route.ts 옆에 schema.ts로 정의
 ```
@@ -646,25 +668,28 @@ export function sanitizePath(basePath: string, userInput: string): string {
 □ COMMISSION_RATES가 seller.ts에서만 export: grep -r "COMMISSION_RATES" lib/
 □ lib/utils/validation.ts에 스키마 5개만 (과잉 정의 방지)
 □ ESLint: @typescript-eslint/no-explicit-any → 0건
+□ [Rev.5-R12] Zod 공용 스키마 자동 판정: grep -c "^export const.*Schema" lib/utils/validation.ts → 5
+□ [Rev.5-O1] 헤더→RLS 토큰 전달 방식 단일화 확정: lib/auth.ts 또는 lib/api/middleware.ts에서 x-hold-token 처리 방식 1개로 확정 (current_setting vs service_role 검증)
 ```
 
 
 ### 4.5 [SEC/OPS 보강] 사진 URL 헬퍼 (Phase 7 대비)
 
-> **목표**: 프론트(Phase 6)가 사진 경로를 하드코딩하지 않도록 “단일 함수”로 강제하고,  
+> **목표**: 프론트(Phase 6)가 사진 경로를 하드코딩하지 않도록 "단일 함수"로 강제하고,  
 > Phase 7(Storage 전환)은 **환경변수만**으로 스위치한다.
 
 ```typescript
 // lib/utils/photo-url.ts
-import { createClient } from '@/lib/supabase/client'
+// [Rev.5-R7] 순수 문자열 조합으로 변경 — createClient()는 브라우저/서버 경계가 불명확하고,
+// process.env.PHOTO_STORAGE_MODE는 클라이언트에서 안전하게 읽히지 않음 (Next.js 환경변수 규칙).
+// NEXT_PUBLIC_ 접두사 환경변수 + 순수 문자열 조합으로 클라이언트/서버 모두 안전하게 사용 가능.
+
+const PHOTO_BASE = process.env.NEXT_PUBLIC_PHOTO_BASE_URL ?? '' // Supabase Storage public URL base
+const PHOTO_MODE = process.env.NEXT_PUBLIC_PHOTO_STORAGE_MODE ?? 'legacy' // 'legacy' | 'supabase'
 
 export function getPhotoUrl(productId: string, fileName: string): string {
-  const mode = process.env.PHOTO_STORAGE_MODE ?? 'legacy' // 'legacy' | 'supabase'
-  if (mode === 'supabase') {
-    // public bucket을 전제. private bucket이면 signed URL 전략으로 변경.
-    const supabase = createClient()
-    const { data } = supabase.storage.from('photos').getPublicUrl(`${productId}/${fileName}`)
-    return data.publicUrl
+  if (PHOTO_MODE === 'supabase') {
+    return `${PHOTO_BASE}/photos/${productId}/${fileName}`
   }
   return `/uploads/photos/${productId}/${fileName}` // V2 호환 (Phase 7 전까지)
 }
@@ -696,18 +721,21 @@ lib/db/transactions/consignment.tx.ts
 
 ```typescript
 // 원칙 1: 모든 { data, error } 필수 확인 (V2 9건 미확인)
-const { data, error } = await supabase.from('sellers').select('*')
+// [Rev.5-R8] select('*') → 명시적 컬럼 — architecture-spec.md "SELECT * 금지" (process-checklist.md §4 보안 게이트)와 정렬.
+const { data, error } = await supabase.from('sellers').select('id,name,phone,tier,commission_rate')
 if (error) throw new Error(`sellers 조회 실패: ${error.message}`)
 
 // 원칙 2: .in() 호출 시 chunkArray(100) (V2 H10)
 const chunks = chunkArray(ids, 100)
 const results = await Promise.all(chunks.map(chunk =>
-  supabase.from('sold_items').select('*').in('id', chunk)
+  // [Rev.5-R8] select('*') → 명시적 컬럼
+  supabase.from('sold_items').select('id,seller_id,settlement_status,product_number').in('id', chunk)
 ))
 
 // 원칙 3: 목록 쿼리에 .range() 강제 (V2 DAT-01 1000행 절삭)
 const { data, count } = await supabase
-  .from('orders').select('*', { count: 'exact' })
+  // [Rev.5-R8] select('*') → 명시적 컬럼
+  .from('orders').select('id,order_number,customer_name,phone,status', { count: 'exact' })
   .range(from, to)
 
 // 원칙 4: .or() 문자열 보간 전면 제거 (V2 SEC-04)
@@ -806,7 +834,8 @@ function mapRow(row: DbSeller): Seller {
 □ tsc --strict --noEmit → 에러 0건
 □ ESLint: grep -r "\.or(\`" lib/db/ → 0건 (PostgREST 인젝션 0)
 □ 모든 리포지토리에서 error 체크: grep -r "if.*error.*throw" lib/db/repositories/ → 파일 수와 일치
-□ .range() 사용: grep -r "\.range(" lib/db/repositories/ → 목록 함수 수와 일치
+> **[Rev.5-R10]** 목록 함수 네이밍 — "목록 함수"의 정의가 불명확하여 list*/search* 접두사로 강제. grep으로 기계적 카운트 가능.
+□ .range() 사용: grep -r "\.range(" lib/db/repositories/ → 목록 함수(list*/search* 접두사) 수와 일치
 □ chunkArray 사용: grep -r "chunkArray" lib/db/repositories/ → .in() 사용 횟수와 일치
 □ 매퍼 파일 0개: ls lib/db/mappers/ → 디렉토리 없음
 □ 리포지토리 120줄 이내: wc -l lib/db/repositories/*.ts
@@ -865,7 +894,7 @@ export async function classifyBatch(productIds: string[]): Promise<BatchResult> 
   const batchId = crypto.randomUUID()
   const result: BatchResult = {
     batchId, total: productIds.length, completed: 0, failed: 0,
-    failedIds: [], status: 'running'
+    failedIds: [] as string[], status: 'running'
   }
 
   for (const id of productIds) {
@@ -874,12 +903,16 @@ export async function classifyBatch(productIds: string[]): Promise<BatchResult> 
       result.completed++
     } catch (err) {
       result.failed++
-      result.failedIds.push(id)
+      // [Rev.5-R11] failedIds 중복 방지 — Set으로 누적 후 배열화. 429 중단 시 slice와 현재 id가 겹칠 수 있음.
+      const failedSet = new Set(result.failedIds)
+      failedSet.add(id)
       if (err instanceof Error && err.message.includes('429')) {
         result.status = 'partial'
-        result.failedIds.push(...productIds.slice(productIds.indexOf(id) + 1))
+        productIds.slice(productIds.indexOf(id) + 1).forEach(remaining => failedSet.add(remaining))
+        result.failedIds = Array.from(failedSet)
         break
       }
+      result.failedIds = Array.from(failedSet)
     }
   }
 
@@ -895,6 +928,9 @@ export async function classifyBatch(productIds: string[]): Promise<BatchResult> 
 
 ```typescript
 // lib/api/response.ts
+// [Rev.5-R13] NextResponse import 누락 보완 — 이 예시를 에이전트가 복붙하면 TS 에러 즉시 발생.
+import { NextResponse } from 'next/server'
+
 export function ok<T>(data: T, cacheHint?: { revalidate: number }) {
   const headers: Record<string, string> = {}
   if (cacheHint) {
@@ -912,7 +948,9 @@ export function ok<T>(data: T, cacheHint?: { revalidate: number }) {
 
 ---
 
-## 8. Phase 5: API 라우트 ([Rev.4] 63개)
+## 8. Phase 5: API 라우트 ([Rev.4] 현재 63개, 증감 시 동기화 필수)
+
+> **[Rev.5-R6]** 고정 숫자 리스크 — 63개를 고정 숫자로 박아두면 라우트 추가/삭제 시마다 문서 전체 수정 필요. "현재 + 동기화 필수"로 유연화.
 
 ### 8.1 라우트 수 정정 ([Rev.4] Rev.3 "62" → Rev.4 "63")
 
@@ -936,6 +974,8 @@ import { requireAdmin } from '@/lib/api/middleware'
 import { ok, err, validationErr } from '@/lib/api/response'
 import { XxxSchema } from './schema'
 import * as service from '@/lib/services/xxx.service'
+// [Rev.5-R14] Sentry import 누락 보완 — 패턴 내에서 Sentry.captureException(e)를 사용하는데 import가 없으면 TS 에러.
+import * as Sentry from '@sentry/nextjs'
 
 export async function POST(req: NextRequest) {
   const authErr = await requireAdmin(req)
@@ -962,7 +1002,7 @@ export async function POST(req: NextRequest) {
 
 ### 8.2.1 [SEC/OPS 보강] 에러 응답 표준화 (운영 품질)
 
-> **목표**: 프론트가 “무슨 에러인지”를 코드로 분기 가능하게 하고, Public 라우트는 메시지를 무해하게 제한한다.
+> **목표**: 프론트가 "무슨 에러인지"를 코드로 분기 가능하게 하고, Public 라우트는 메시지를 무해하게 제한한다.
 
 - 표준 에러 형태:
 ```ts
@@ -972,7 +1012,7 @@ export async function POST(req: NextRequest) {
 - 내부 구현 권장:
   - `lib/api/errors.ts`: `AppError(code, message, httpStatus)`
   - `lib/api/response.ts`: `errFrom(e)`로 AppError → HTTP status/코드 매핑
-  - Public 라우트는 `message`를 “처리할 수 없습니다” 수준으로 축소(상세는 Sentry만)
+  - Public 라우트는 `message`를 "처리할 수 없습니다" 수준으로 축소(상세는 Sentry만)
 
 ### 8.3 [Rev.4] /api/health 헬스체크 (R4-02: FIX-17)
 
@@ -987,7 +1027,18 @@ export async function POST(req: NextRequest) {
 // WHY: 프로덕션 모니터링 — DB+Storage+SMS 상태를 단일 엔드포인트로 확인 (audit2 FIX-17)
 // HOW: 인증 불필요 (외부 모니터링 서비스 접근용), GET만 허용
 
-export async function GET() {
+// [Rev.5-R15] 보안 경계 규약과 코드 일치 — 문서에서 "토큰 없으면 상세 숨김"이라 했으나
+// 코드 예시는 토큰 검사 없이 checks를 항상 반환. 문서 자체가 모순이므로 코드를 규약에 맞춤.
+export async function GET(req: NextRequest) {
+  const token = req.headers.get('x-health-token')
+  const hasToken = token === process.env.HEALTHCHECK_TOKEN
+
+  // 토큰 없으면 status만 반환 (체크 상세/에러/latency 숨김)
+  if (!hasToken) {
+    return NextResponse.json({ status: 'ok' }, { status: 200 })
+  }
+
+  // 토큰 있을 때만 상세 체크 수행 (외부 부하 유발 방지)
   const checks = {
     db: await checkDB(),        // SELECT 1 FROM sellers LIMIT 1
     storage: await checkStorage(), // supabase.storage.listBuckets()
@@ -1009,8 +1060,9 @@ export async function GET() {
 
 > **세션 정책(필수 확정)**  
 > - **업로드 1회 = 1세션**(재시도 포함). `sessionId`는 클라이언트가 보관하고 재시도 요청에 `x-upload-session-id`로 재전송한다.  
+> - **[Rev.5-R18] MUST**: 클라이언트는 최초 응답의 sessionId를 저장한 후, 이후 재시도 요청에서 반드시 `x-upload-session-id` 헤더로 재전송한다. 미전송 시 새 세션으로 처리된다.
 > - 동시 업로드(A/B)는 서로 다른 `sessionId`로 완전 격리된다.  
-> - “관리자별 이전 세션 자동 정리”가 필요하면 `admin_id ↔ last_session_id` 매핑 테이블을 별도로 둔다(옵션).
+> - "관리자별 이전 세션 자동 정리"가 필요하면 `admin_id ↔ last_session_id` 매핑 테이블을 별도로 둔다(옵션).
 
 ```typescript
 // app/api/admin/sales/upload-naver-settle/route.ts (개념)
@@ -1060,11 +1112,13 @@ export const GenerateSettlementSchema = z.object({
 □ tsc --strict --noEmit → 에러 0건
 □ ESLint --max-warnings 0 (CI에서 자동 실행)
 □ requireAdmin 반환값 사용 강제: ESLint 커스텀 규칙
-□ 모든 POST/PATCH에 schema.ts 존재: ls app/api/**/schema.ts
+> **[Rev.5-R16]** schema.ts 게이트 ls → find 표준화 — ls의 ** glob은 shell 환경에 따라 동작이 달라 자동판정이 불안정. find로 표준화.
+□ 모든 POST/PATCH에 schema.ts 존재: find app/api -name schema.ts | wc -l
 □ wc -l app/api/**/route.ts → 모든 라우트 100줄 이내
 □ grep -r "\.or(\`" app/ → 0건
 □ grep -r "req\.json()" app/api/ | grep -v "catch" → 0건
-□ [Rev.4] DB 업데이트 → 응답 생성 순서 준수: 모든 서비스에서 DB 작업 후 Response 생성 확인 (R4-03: FIN-07)
+> **[Rev.5-R17]** DB-우선 응답 게이트 자동판정 — "모든 서비스에서 DB 작업 후 Response 생성 확인"은 기계 판정 불가. ok() 호출 전 service 함수 반환 기준으로 명확화.
+□ [Rev.4] DB 업데이트 → 응답 생성 순서 준수: route.ts에서 ok() 호출 전 반드시 service.* 함수가 DB write 결과를 반환한 후여야 함 (R4-03: FIN-07)
 ```
 
 ---
@@ -1098,8 +1152,11 @@ export const GenerateSettlementSchema = z.object({
 검증 게이트 수정:
 ❌ 이전: grep -r "style={{" app/ → 0건 (동적 스타일까지 금지)
 ✅ 수정: ESLint "no-static-inline-styles" 커스텀 규칙
+  - 룰 이름: no-static-inline-styles
   - 정적 하드코딩 금지: style={{ background: '#C4A265' }}
   - 동적 값 허용: style={{ width: `${percent}%` }}
+  - 적용 위치: .eslintrc의 rules에 등록
+  - [Rev.5-R19] 커스텀 ESLint 규칙의 룰 이름 / 허용·금지 조건 / 적용 위치를 명시. 이 3요소가 없으면 게이트가 아니라 구호에 불과.
 ```
 
 ---
@@ -1201,6 +1258,8 @@ Sentry.init({
 ### 11.3 [Rev.3] ESLint 커스텀 규칙 (pa1 IMP-08)
 ```javascript
 // eslint-local-rules/must-check-auth.js
+// [Rev.5-R21] 강화판 — 기존 룰은 "변수에 담았는지"만 확인하여 우회 가능.
+// 강화: requireAdmin() 호출 후 같은 스코프 내에서 if (authErr) return 패턴 사용을 강제.
 module.exports = {
   create(context) {
     return {
@@ -1208,7 +1267,24 @@ module.exports = {
         if (node.callee.name === 'requireAdmin') {
           const parent = node.parent
           if (parent.type !== 'VariableDeclarator' && parent.type !== 'AssignmentExpression') {
-            context.report({ node, message: 'requireAdmin() 반환값을 반드시 확인하세요' })
+            context.report({ node, message: 'requireAdmin() 반환값을 반드시 변수에 담으세요' })
+            return
+          }
+          // 강화: 같은 블록 내에서 if (변수명) return 패턴 존재 확인
+          const varName = parent.type === 'VariableDeclarator' ? parent.id.name : null
+          if (varName) {
+            const block = node.parent.parent.parent // BlockStatement
+            if (block && block.body) {
+              const hasReturnCheck = block.body.some(stmt =>
+                stmt.type === 'IfStatement' &&
+                stmt.test.type === 'Identifier' &&
+                stmt.test.name === varName &&
+                stmt.consequent.type === 'ReturnStatement'
+              )
+              if (!hasReturnCheck) {
+                context.report({ node, message: `${varName}를 if (${varName}) return 패턴으로 확인하세요` })
+              }
+            }
           }
         }
       }
@@ -1228,9 +1304,11 @@ module.exports = {
 pnpm eslint . --max-warnings 0
 
 # Tier 2: 추가 grep
-tsc --strict --noEmit | wc -l                          # → 0
+# [Rev.5-R22] tsc exit code 기반 판정 — tsc 출력 줄수는 환경마다 달라 wc -l이 의미 없음. exit code로 판정.
+pnpm tsc --noEmit; echo "EXIT:$?"                       # → EXIT:0
+# [Rev.5-R22] grep 스코프 — scripts/, __tests__/는 제외 (readFileSync가 테스트에서 사용될 수 있음)
 grep -r 'process\.cwd' lib/ app/ | wc -l               # → 0
-grep -r 'readFileSync\|writeFileSync' lib/ app/ | wc -l # → 0
+grep -r 'readFileSync\|writeFileSync' lib/ app/ --exclude-dir=__tests__ --exclude-dir=scripts | wc -l # → 0
 
 # Tier 3: 수동 검증 (11건)
 ```
@@ -1249,6 +1327,10 @@ grep -r 'readFileSync\|writeFileSync' lib/ app/ | wc -l # → 0
 | 통합 | RPC 3개 (정상/실패/엣지) | ~15 | Phase 2 완료 시 |
 | E2E | CRITICAL 라우트 5개 | ~10 | Phase 5 완료 시 |
 | 회귀 | 전체 스위트 | ~75 | Phase 8 + CI |
+
+> **[Rev.5-R23]** Ralph Loop 연속 PASS 정의 — "연속 3PASS"의 대상 테스트 세트가 미정의. 누군가는 "E2E 3회", 누군가는 "unit만 3회"로 해석 가능하여 명시.
+
+**Ralph Loop 연속 PASS = Phase Gate MUST 세트(tsc + eslint + vitest + next build)를 3회 연속 통과로 정의한다.** 이 정의는 phase-checklists.md §0.1 공통 완료 조건 4개와 동일하다.
 
 ### 12.3 CRITICAL 테스트 케이스
 ```typescript
@@ -1428,7 +1510,7 @@ Phase 0 → Phase 1 → Phase 2 → Phase 3+4  (순차 필수, 4일)
 |------|-------------|------|
 | CTO Lead | cto-lead | 63개 라우트 전수 확인 총괄 |
 | 테스트 | test-automator | E2E 테스트 ~10개 (CRITICAL 라우트) |
-| QA | qa-strategist | `ls app/api/**/route.ts \| wc -l` = **63** + vitest E2E PASS |
+| QA | qa-strategist | `find app/api -name route.ts \| wc -l` = **63** + vitest E2E PASS |
 | 리뷰 | code-reviewer | 3팀 코드 일관성 검증 (네이밍, 패턴, 에러 처리) |
 
 **Day 5 총 에이전트**: Alpha 5 + Beta 5 + Gamma 4 + Cross-QA 4 = **최대 18명**
@@ -1530,7 +1612,8 @@ Phase 0 → Phase 1 → Phase 2 → Phase 3+4  (순차 필수, 4일)
 ### 13.4 병렬 팀 운영 규칙
 
 #### 코드 충돌 방지
-- **Day 5 (3팀)**: 각 팀은 `app/api/` 하위 디렉토리를 완전히 분리. 팀 간 공유 파일(lib/) 수정 금지.
+> **[Rev.5-R24]** 공유 파일 수정 1명 명시 + find 표준화 — agent-ops-guide.md의 "lib/ 읽기 전용" 원칙을 Plan에도 명시. ls glob → find로 표준화.
+- **Day 5 (3팀)**: 각 팀은 `app/api/` 하위 디렉토리를 완전히 분리. 팀 간 공유 파일(lib/) 수정 금지. **공유 파일 수정이 필요한 경우 CTO Lead 1명만 수정 가능** (agent-ops-guide.md 공용 파일 규칙).
 - **Day 6 (2팀)**: Team Alpha가 `app/admin/components/` 선행 완료 → Team Beta는 컴포넌트 import만.
 - 모든 팀은 `lib/` 디렉토리를 **읽기 전용**으로 취급 (Day 4까지 완성)
 
@@ -2122,3 +2205,6 @@ Day 7 (Phase 7):
 *총 64명·일 투입. 피크: Day 5 (18명 동시).*
 *9일 일정 (8일 작업 + 1일 버퍼). 순차 대비 31% 단축.*
 *구현 시작 전 사용자 승인 필수.*
+
+---
+출력 줄수: 2210줄 (원본 2125줄 대비 104.0%)
