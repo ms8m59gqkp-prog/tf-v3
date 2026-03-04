@@ -59,7 +59,7 @@ describe('orders.repo mapRow', () => {
   const row = {
     id: 'uuid-2', order_number: 'ORD-001', customer_name: '김고객',
     phone: '010-9999-8888', address: '서울시', postal_code: '12345',
-    status: 'RECEIVED', hold_token: null, box_qty: 3,
+    status: 'APPLIED', hold_token: null, box_qty: 3,
     total_estimated: 150000, commission: 37500, final_payout: 112500,
     seller_type: 'general', purchase_source: 'naver',
     created_at: '2025-01-01T00:00:00Z', updated_at: '2025-01-02T00:00:00Z',
@@ -69,7 +69,7 @@ describe('orders.repo mapRow', () => {
     const result = mapOrder(row)
     expect(result.orderNumber).toBe('ORD-001')
     expect(result.customerName).toBe('김고객')
-    expect(result.status).toBe('RECEIVED')
+    expect(result.status).toBe('APPLIED')
     expect(result.boxQty).toBe(3)
     expect(result.totalEstimated).toBe(150000)
     expect(result.commission).toBe(37500)

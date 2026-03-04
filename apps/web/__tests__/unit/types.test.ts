@@ -56,12 +56,12 @@ describe('ConsignmentStatus', () => {
 })
 
 describe('OrderStatus', () => {
-  it('has exactly 8 values', () => {
-    expect(ORDER_STATUSES).toHaveLength(8)
+  it('has exactly 10 values (V2 8 + CONFIRMED + CANCELLED)', () => {
+    expect(ORDER_STATUSES).toHaveLength(10)
   })
 
   it('includes all required statuses', () => {
-    const required = ['RECEIVED', 'IMAGE_COMPLETE', 'HOLD_REQUEST', 'CHECKING_ITEMS', 'SHIPPING', 'DELIVERED', 'CONFIRMED', 'CANCELLED']
+    const required = ['APPLIED', 'SHIPPING', 'COLLECTED', 'INSPECTED', 'PRICE_ADJUSTING', 'RE_INSPECTED', 'IMAGE_PREPARING', 'IMAGE_COMPLETE', 'CONFIRMED', 'CANCELLED']
     for (const status of required) {
       expect(ORDER_STATUSES).toContain(status)
     }
@@ -69,7 +69,7 @@ describe('OrderStatus', () => {
 
   it('ALLOWED_TRANSITIONS covers all statuses', () => {
     const transitionKeys = Object.keys(ALLOWED_TRANSITIONS)
-    expect(transitionKeys).toHaveLength(8)
+    expect(transitionKeys).toHaveLength(10)
     for (const status of ORDER_STATUSES) {
       expect(transitionKeys).toContain(status)
     }
@@ -86,6 +86,24 @@ describe('OrderStatus', () => {
   it('terminal states have no transitions', () => {
     expect(ALLOWED_TRANSITIONS.CONFIRMED).toHaveLength(0)
     expect(ALLOWED_TRANSITIONS.CANCELLED).toHaveLength(0)
+  })
+
+  it('V2 workflow: APPLIED → SHIPPING → COLLECTED → INSPECTED', () => {
+    expect(ALLOWED_TRANSITIONS.APPLIED).toContain('SHIPPING')
+    expect(ALLOWED_TRANSITIONS.SHIPPING).toContain('COLLECTED')
+    expect(ALLOWED_TRANSITIONS.COLLECTED).toContain('INSPECTED')
+  })
+
+  it('V2 workflow: INSPECTED branches to PRICE_ADJUSTING or IMAGE_PREPARING', () => {
+    expect(ALLOWED_TRANSITIONS.INSPECTED).toContain('PRICE_ADJUSTING')
+    expect(ALLOWED_TRANSITIONS.INSPECTED).toContain('IMAGE_PREPARING')
+  })
+
+  it('all non-terminal states can transition to CANCELLED', () => {
+    for (const status of ORDER_STATUSES) {
+      if (status === 'CONFIRMED' || status === 'CANCELLED') continue
+      expect(ALLOWED_TRANSITIONS[status]).toContain('CANCELLED')
+    }
   })
 })
 

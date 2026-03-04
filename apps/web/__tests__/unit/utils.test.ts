@@ -7,6 +7,12 @@ import { chunkArray } from '@/lib/utils/chunk'
 import { generateOrderNumber, generateProductNumber } from '@/lib/utils/id'
 import { buildSmsMessage } from '@/lib/utils/sms-templates'
 import { getPhotoUrl } from '@/lib/utils/photo-url'
+import {
+  isValidDateString,
+  toKSTDate,
+  toKSTDateTime,
+  toStartOfDay,
+} from '@/lib/utils/date'
 
 describe('phone utils', () => {
   it('normalizePhone removes hyphens', () => {
@@ -44,8 +50,20 @@ describe('brand utils', () => {
     expect(normalizeBrand('UnknownBrand')).toBe('UNKNOWNBRAND')
   })
 
-  it('BRAND_ALIAS_MAP has entries', () => {
-    expect(Object.keys(BRAND_ALIAS_MAP).length).toBeGreaterThan(10)
+  it('normalizeBrand resolves V2 classic brand (Korean)', () => {
+    expect(normalizeBrand('드레익스')).toBe("DRAKE'S")
+    expect(normalizeBrand('볼리올리')).toBe('BOGLIOLI')
+    expect(normalizeBrand('로로피아나')).toBe('LORO PIANA')
+  })
+
+  it('normalizeBrand resolves V2 classic brand (English)', () => {
+    expect(normalizeBrand('ring jacket')).toBe('RING JACKET')
+    expect(normalizeBrand('brooks brothers')).toBe('BROOKS BROTHERS')
+  })
+
+  it('BRAND_ALIAS_MAP has 59+ canonical brands (V2 43 + V3 16)', () => {
+    const canonicals = new Set(Object.values(BRAND_ALIAS_MAP))
+    expect(canonicals.size).toBeGreaterThanOrEqual(59)
   })
 })
 
@@ -109,18 +127,23 @@ describe('chunk utils', () => {
 })
 
 describe('id utils', () => {
-  it('generateOrderNumber has ORD- prefix', () => {
+  it('generateOrderNumber: YYYYMMDD-숫자6 (V2 형식)', () => {
     const id = generateOrderNumber()
-    expect(id).toMatch(/^ORD-\d{8}-\d{6}$/)
+    expect(id).toMatch(/^\d{8}-\d{6}$/)
   })
 
-  it('generateProductNumber has PRD- prefix', () => {
+  it('generateProductNumber: YYYYMMDD-알파벳6 (V2 형식)', () => {
     const id = generateProductNumber()
-    expect(id).toMatch(/^PRD-\d{8}-\d{6}$/)
+    expect(id).toMatch(/^\d{8}-[A-Z]{6}$/)
   })
 
-  it('generates unique values', () => {
+  it('generates unique order numbers', () => {
     const ids = new Set(Array.from({ length: 10 }, () => generateOrderNumber()))
+    expect(ids.size).toBe(10)
+  })
+
+  it('generates unique product numbers', () => {
+    const ids = new Set(Array.from({ length: 10 }, () => generateProductNumber()))
     expect(ids.size).toBe(10)
   })
 })
@@ -151,5 +174,72 @@ describe('photo-url', () => {
   it('returns legacy path by default', () => {
     const url = getPhotoUrl('prod-123', 'front.jpg')
     expect(url).toBe('/uploads/photos/prod-123/front.jpg')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// CR-01: sms-templates ReDoS 방어
+// ---------------------------------------------------------------------------
+
+describe('sms-templates (CR-01 ReDoS)', () => {
+  it('throws on missing placeholder params', () => {
+    expect(() => buildSmsMessage('CONSIGNMENT_RECEIVED', {
+      sellerName: '홍길동',
+      // warehousePhone intentionally omitted
+    })).toThrow('SMS 템플릿 미치환 변수')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// CR-02: date.ts isValidDateString round-trip 검증
+// ---------------------------------------------------------------------------
+
+describe('date utils (CR-02 rollover)', () => {
+  it('rejects rolled-over dates', () => {
+    expect(isValidDateString('2026-02-30')).toBe(false)
+    expect(isValidDateString('2026-02-29')).toBe(false) // 2026 is not a leap year
+    expect(isValidDateString('2026-04-31')).toBe(false) // April has 30 days
+    expect(isValidDateString('2026-06-31')).toBe(false) // June has 30 days
+  })
+
+  it('accepts valid dates', () => {
+    expect(isValidDateString('2026-03-04')).toBe(true)
+    expect(isValidDateString('2024-02-29')).toBe(true)  // 2024 IS leap year
+    expect(isValidDateString('2026-01-31')).toBe(true)
+    expect(isValidDateString('2026-12-31')).toBe(true)
+  })
+
+  it('rejects bad format', () => {
+    expect(isValidDateString('03-04-2026')).toBe(false)
+    expect(isValidDateString('not-a-date')).toBe(false)
+    expect(isValidDateString('')).toBe(false)
+  })
+
+  it('toStartOfDay throws on invalid rollover date', () => {
+    expect(() => toStartOfDay('2026-02-30')).toThrow('유효하지 않은 날짜')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// CR-03: toKSTDate/toKSTDateTime Invalid Date 가드
+// ---------------------------------------------------------------------------
+
+describe('date display utils (CR-03 invalid input)', () => {
+  it('toKSTDate converts UTC ISO to KST date string', () => {
+    // 2026-03-04T15:00:00Z = 2026-03-05 00:00 KST
+    expect(toKSTDate('2026-03-04T15:00:00Z')).toBe('2026-03-05')
+  })
+
+  it('toKSTDate throws on invalid input', () => {
+    expect(() => toKSTDate('invalid')).toThrow('유효하지 않은 UTC ISO 문자열')
+    expect(() => toKSTDate('')).toThrow('유효하지 않은 UTC ISO 문자열')
+  })
+
+  it('toKSTDateTime converts UTC ISO to KST datetime string', () => {
+    expect(toKSTDateTime('2026-03-04T15:30:00Z')).toBe('2026-03-05 00:30')
+  })
+
+  it('toKSTDateTime throws on invalid input', () => {
+    expect(() => toKSTDateTime('not-a-date')).toThrow('유효하지 않은 UTC ISO 문자열')
   })
 })

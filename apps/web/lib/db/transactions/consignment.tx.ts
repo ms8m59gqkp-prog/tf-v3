@@ -10,6 +10,9 @@ import { createAdminClient } from '@/lib/db/client'
 interface CompleteConsignmentInput {
   consignmentId: string
   productNumber: string
+  productName?: string
+  salePrice?: number
+  sellerId?: string
   brand?: string
   category?: string
   condition?: string
@@ -26,6 +29,9 @@ export async function completeConsignment(input: CompleteConsignmentInput): Prom
   const { data, error } = await supabase.rpc('complete_consignment', {
     p_consignment_id: input.consignmentId,
     p_product_number: input.productNumber,
+    p_product_name: input.productName ?? null,
+    p_sale_price: input.salePrice ?? 0,
+    p_seller_id: input.sellerId ?? null,
     p_brand: input.brand ?? null,
     p_category: input.category ?? null,
     p_condition: input.condition ?? null,
