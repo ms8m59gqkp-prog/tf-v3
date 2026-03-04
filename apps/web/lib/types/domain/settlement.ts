@@ -85,3 +85,17 @@ export interface SalesRecord {
   channel?: string
   createdAt: string
 }
+
+export interface NaverSettlement {
+  id: string
+  orderNo: string
+  productOrderNo?: string
+  productName?: string
+  buyerName?: string
+  settleBaseDate?: string
+  settleAmount: number
+  settleStatus?: string
+  matchStatus: string
+  uploadBatch?: string
+  createdAt: string
+}

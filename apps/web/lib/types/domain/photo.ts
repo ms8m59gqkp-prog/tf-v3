@@ -47,3 +47,12 @@ export interface BatchProgress {
   createdAt: string
   updatedAt: string
 }
+
+export interface BatchResult {
+  batchId: string
+  total: number
+  success: number
+  failed: number
+  failedIds: string[]
+  status: BatchStatus
+}
