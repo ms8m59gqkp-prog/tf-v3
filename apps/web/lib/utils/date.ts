@@ -1,85 +1,46 @@
 /**
- * 날짜 유틸리티 (UTC-only 원칙)
- * WHY: V2 KST/UTC 혼용 → 정산 기간 하루 오차 (DAT-02)
- * HOW: 저장은 UTC, 표시는 KST 변환 (Intl.DateTimeFormat 사용)
- * WHERE: 정산 기간, 주문일, 위탁일 처리
+ * 날짜 포맷 유틸리티
+ * WHY: V2 DB는 date/timestamptz 저장, UI는 다양한 포맷 필요
+ * HOW: Date 파싱 → 포맷 변환
+ * WHERE: 날짜 표시하는 모든 UI에서 사용
  */
 
-const KST_DATE_FORMATTER = new Intl.DateTimeFormat('ko-KR', {
-  timeZone: 'Asia/Seoul',
-  year: 'numeric',
-  month: '2-digit',
-  day: '2-digit',
-})
-
-const KST_DATETIME_FORMATTER = new Intl.DateTimeFormat('ko-KR', {
-  timeZone: 'Asia/Seoul',
-  year: 'numeric',
-  month: '2-digit',
-  day: '2-digit',
-  hour: '2-digit',
-  minute: '2-digit',
-  hour12: false,
-})
-
-const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/
-
-/**
- * UTC ISO 문자열 → "YYYY-MM-DD" (KST)
- */
-export function toKSTDate(utcIso: string): string {
-  const parts = KST_DATE_FORMATTER.formatToParts(new Date(utcIso))
-  const y = parts.find((p) => p.type === 'year')?.value
-  const m = parts.find((p) => p.type === 'month')?.value
-  const d = parts.find((p) => p.type === 'day')?.value
-  return `${y}-${m}-${d}`
+export function formatDate(date: string | Date): string {
+  const d = typeof date === 'string' ? new Date(date) : date
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
 }
 
-/**
- * UTC ISO 문자열 → "YYYY-MM-DD HH:mm" (KST)
- */
-export function toKSTDateTime(utcIso: string): string {
-  const parts = KST_DATETIME_FORMATTER.formatToParts(new Date(utcIso))
-  const y = parts.find((p) => p.type === 'year')?.value
-  const m = parts.find((p) => p.type === 'month')?.value
-  const d = parts.find((p) => p.type === 'day')?.value
-  const h = parts.find((p) => p.type === 'hour')?.value
-  const min = parts.find((p) => p.type === 'minute')?.value
-  return `${y}-${m}-${d} ${h}:${min}`
+export function formatDateTime(date: string | Date): string {
+  const d = typeof date === 'string' ? new Date(date) : date
+  const dateStr = formatDate(d)
+  const h = String(d.getHours()).padStart(2, '0')
+  const min = String(d.getMinutes()).padStart(2, '0')
+  return `${dateStr} ${h}:${min}`
 }
 
-/**
- * 날짜 범위를 표시용 문자열로 포맷
- */
-export function formatDateRange(start: string, end: string): string {
-  return `${start} ~ ${end}`
+export function formatRelativeTime(date: string | Date): string {
+  const d = typeof date === 'string' ? new Date(date) : date
+  const now = new Date()
+  const diffMs = now.getTime() - d.getTime()
+  const diffMin = Math.floor(diffMs / 60000)
+  const diffHour = Math.floor(diffMs / 3600000)
+  const diffDay = Math.floor(diffMs / 86400000)
+
+  if (diffMin < 1) return '방금 전'
+  if (diffMin < 60) return `${diffMin}분 전`
+  if (diffHour < 24) return `${diffHour}시간 전`
+  if (diffDay < 30) return `${diffDay}일 전`
+  return formatDate(d)
 }
 
-/**
- * YYYY-MM-DD 형식인지 검사
- */
-export function isValidDateString(value: string): boolean {
-  if (!DATE_REGEX.test(value)) return false
-  const date = new Date(value)
-  return !isNaN(date.getTime())
+export function toDateString(date: Date): string {
+  return formatDate(date)
 }
 
-/**
- * "YYYY-MM-DD" → 해당 날짜 UTC 자정 (00:00:00.000Z)
- */
-export function toStartOfDay(dateStr: string): Date {
-  if (!isValidDateString(dateStr)) {
-    throw new Error(`유효하지 않은 날짜 형식: ${dateStr}`)
-  }
-  return new Date(`${dateStr}T00:00:00.000Z`)
-}
-
-/**
- * "YYYY-MM-DD" → 해당 날짜 UTC 끝 (23:59:59.999Z)
- */
-export function toEndOfDay(dateStr: string): Date {
-  if (!isValidDateString(dateStr)) {
-    throw new Error(`유효하지 않은 날짜 형식: ${dateStr}`)
-  }
-  return new Date(`${dateStr}T23:59:59.999Z`)
+export function isValidDate(value: string): boolean {
+  const d = new Date(value)
+  return !isNaN(d.getTime())
 }

@@ -1,34 +1,31 @@
 /**
- * 카테고리 추론
- * WHY: 상품명/브랜드로부터 카테고리 자동 분류
- * HOW: 키워드 매칭 기반 inferCategory
- * WHERE: 상품 등록, 엑셀 업로드
+ * 카테고리 유틸리티
+ * WHY: V2 st_products.category 기반 카테고리 정규화
+ * HOW: 한글/영문 매핑 + 정규화 함수
+ * WHERE: 위탁 접수, 상품 등록 시 카테고리 정규화
  */
 
-const CATEGORY_KEYWORDS: Record<string, string[]> = {
-  '자켓': ['자켓', 'jacket', '블레이저', 'blazer'],
-  '코트': ['코트', 'coat', '오버코트', 'overcoat'],
-  '셔츠': ['셔츠', 'shirt'],
-  '바지': ['바지', 'pants', 'trousers', '팬츠', '슬랙스'],
-  '니트': ['니트', 'knit', 'sweater', '스웨터', '가디건', 'cardigan'],
-  '가방': ['가방', 'bag', '백팩', '토트', '클러치'],
-  '신발': ['신발', 'shoes', '구두', '스니커즈', 'sneakers', '로퍼', 'loafer'],
-  '액세서리': [
-    '넥타이', 'tie', '벨트', 'belt', '스카프', 'scarf',
-    '모자', 'hat', 'cap', '워치', 'watch', '선글라스', 'sunglasses',
-  ],
+export const CATEGORIES = [
+  '가방', '지갑', '시계', '주얼리', '의류', '신발', '벨트', '스카프', '선글라스', '기타',
+] as const satisfies readonly string[]
+
+export type Category = (typeof CATEGORIES)[number]
+
+const CATEGORY_ALIASES: Record<string, string> = {
+  bag: '가방', bags: '가방', handbag: '가방',
+  wallet: '지갑', wallets: '지갑',
+  watch: '시계', watches: '시계',
+  jewelry: '주얼리', jewellery: '주얼리',
+  clothing: '의류', clothes: '의류',
+  shoes: '신발', shoe: '신발',
+  belt: '벨트', belts: '벨트',
+  scarf: '스카프', scarves: '스카프',
+  sunglasses: '선글라스',
+  other: '기타', others: '기타', etc: '기타',
 }
 
-/**
- * 상품명에서 카테고리를 추론한다.
- * 키워드 매칭 기반이며, 매칭되지 않으면 '기타' 반환.
- */
-export function inferCategory(productName: string): string {
-  const lower = productName.toLowerCase()
-  for (const [category, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
-    if (keywords.some((kw) => lower.includes(kw))) {
-      return category
-    }
-  }
-  return '기타'
+export function normalizeCategory(input: string): string {
+  const lower = input.trim().toLowerCase()
+  if (CATEGORIES.includes(lower as Category)) return lower
+  return CATEGORY_ALIASES[lower] ?? input.trim()
 }

@@ -1,148 +1,151 @@
+/**
+ * 도메인 타입 상수 검증 테스트
+ * WHY: V2 CHECK 제약 18종과 1:1 대응 확인
+ * HOW: 상수 배열 값/길이 검증
+ * WHERE: Phase 1 타입 검증
+ */
 import { describe, it, expect } from 'vitest'
 import {
-  CONSIGNMENT_STATUSES,
-  CONSIGNMENT_TRANSITIONS,
-} from '@/lib/types/domain/consignment'
-import {
-  ORDER_STATUSES,
-  ALLOWED_TRANSITIONS,
-} from '@/lib/types/domain/order'
-import {
-  COMMISSION_RATES,
+  SELLER_STATUSES, SELLER_TIERS, CHANNEL_TYPES, COMMISSION_RATES, getCommissionRate,
 } from '@/lib/types/domain/seller'
 import {
-  MEASUREMENT_FIELDS,
-} from '@/lib/types/domain/product'
+  CONSIGNMENT_STATUSES, CONSIGNMENT_SOURCES, SELLER_RESPONSES, ALLOWED_TRANSITIONS,
+} from '@/lib/types/domain/consignment'
 import {
-  SETTLEMENT_STATUSES,
-  SOLD_ITEM_STATUSES,
+  ORDER_STATUSES, INSPECTION_STATUSES, CONDITION_LABELS,
+} from '@/lib/types/domain/order'
+import {
+  SETTLEMENT_STATUSES, SOLD_ITEM_STATUSES, SALES_CHANNELS, MATCH_STATUSES,
 } from '@/lib/types/domain/settlement'
 import {
-  BATCH_STATUSES,
-} from '@/lib/types/domain/photo'
+  PRODUCT_TYPES, PHOTO_STATUSES, SMARTSTORE_STATUSES, RETAIL_PRICE_SOURCES,
+} from '@/lib/types/domain/product'
+import {
+  SMS_STATUSES, BATCH_STATUSES,
+} from '@/lib/types/domain/notification'
 
-describe('ConsignmentStatus', () => {
-  it('has exactly 7 values', () => {
+describe('seller 상수', () => {
+  it('SELLER_STATUSES: 5값', () => {
+    expect(SELLER_STATUSES).toHaveLength(5)
+    expect(SELLER_STATUSES).toContain('pending')
+    expect(SELLER_STATUSES).toContain('active')
+    expect(SELLER_STATUSES).toContain('inactive')
+    expect(SELLER_STATUSES).toContain('suspended')
+    expect(SELLER_STATUSES).toContain('expired')
+  })
+
+  it('SELLER_TIERS: 3값', () => {
+    expect(SELLER_TIERS).toEqual(['general', 'employee', 'vip'])
+  })
+
+  it('CHANNEL_TYPES: 3값', () => {
+    expect(CHANNEL_TYPES).toEqual(['half_size', 'full_size', 'both'])
+  })
+
+  it('COMMISSION_RATES: 티어별 기본값', () => {
+    expect(COMMISSION_RATES.general).toBe(0.25)
+    expect(COMMISSION_RATES.employee).toBe(0.20)
+    expect(COMMISSION_RATES.vip).toBe(0.20)
+  })
+
+  it('getCommissionRate: 개별값 우선', () => {
+    expect(getCommissionRate({ commissionRate: 0.15, sellerTier: 'general' })).toBe(0.15)
+  })
+
+  it('getCommissionRate: 개별값 없으면 티어 기본값', () => {
+    expect(getCommissionRate({ commissionRate: null, sellerTier: 'general' })).toBe(0.25)
+    expect(getCommissionRate({ commissionRate: 0, sellerTier: 'employee' })).toBe(0.20)
+    expect(getCommissionRate({ sellerTier: 'vip' })).toBe(0.20)
+  })
+})
+
+describe('consignment 상수', () => {
+  it('CONSIGNMENT_STATUSES: 7값', () => {
     expect(CONSIGNMENT_STATUSES).toHaveLength(7)
+    expect(CONSIGNMENT_STATUSES).toContain('pending')
+    expect(CONSIGNMENT_STATUSES).toContain('received')
+    expect(CONSIGNMENT_STATUSES).toContain('inspecting')
+    expect(CONSIGNMENT_STATUSES).toContain('on_hold')
+    expect(CONSIGNMENT_STATUSES).toContain('approved')
+    expect(CONSIGNMENT_STATUSES).toContain('rejected')
+    expect(CONSIGNMENT_STATUSES).toContain('completed')
   })
 
-  it('includes all required statuses', () => {
-    const required = ['pending', 'received', 'inspecting', 'approved', 'on_hold', 'rejected', 'completed']
-    for (const status of required) {
-      expect(CONSIGNMENT_STATUSES).toContain(status)
-    }
+  it('CONSIGNMENT_SOURCES: 4값', () => {
+    expect(CONSIGNMENT_SOURCES).toEqual(['naver_form', 'employee', 'manual', 'direct'])
   })
 
-  it('CONSIGNMENT_TRANSITIONS covers all statuses', () => {
-    const transitionKeys = Object.keys(CONSIGNMENT_TRANSITIONS)
-    expect(transitionKeys).toHaveLength(7)
-    for (const status of CONSIGNMENT_STATUSES) {
-      expect(transitionKeys).toContain(status)
-    }
+  it('SELLER_RESPONSES: 3값', () => {
+    expect(SELLER_RESPONSES).toEqual(['accepted', 'counter', 'cancelled'])
   })
 
-  it('transition targets are valid statuses', () => {
-    for (const targets of Object.values(CONSIGNMENT_TRANSITIONS)) {
-      for (const target of targets) {
-        expect(CONSIGNMENT_STATUSES).toContain(target)
-      }
-    }
-  })
-
-  it('terminal states have no transitions', () => {
-    expect(CONSIGNMENT_TRANSITIONS.rejected).toHaveLength(0)
-    expect(CONSIGNMENT_TRANSITIONS.completed).toHaveLength(0)
+  it('ALLOWED_TRANSITIONS: completed/rejected 종료 상태', () => {
+    expect(ALLOWED_TRANSITIONS.completed).toEqual([])
+    expect(ALLOWED_TRANSITIONS.rejected).toEqual([])
+    expect(ALLOWED_TRANSITIONS.approved).toEqual(['completed'])
   })
 })
 
-describe('OrderStatus', () => {
-  it('has exactly 10 values (V2 8 + CONFIRMED + CANCELLED)', () => {
+describe('order 상수', () => {
+  it('ORDER_STATUSES: 10값 (신청관리 전용)', () => {
     expect(ORDER_STATUSES).toHaveLength(10)
+    expect(ORDER_STATUSES).toContain('APPLIED')
+    expect(ORDER_STATUSES).toContain('CONFIRMED')
+    expect(ORDER_STATUSES).toContain('CANCELLED')
   })
 
-  it('includes all required statuses', () => {
-    const required = ['APPLIED', 'SHIPPING', 'COLLECTED', 'INSPECTED', 'PRICE_ADJUSTING', 'RE_INSPECTED', 'IMAGE_PREPARING', 'IMAGE_COMPLETE', 'CONFIRMED', 'CANCELLED']
-    for (const status of required) {
-      expect(ORDER_STATUSES).toContain(status)
-    }
+  it('INSPECTION_STATUSES: 3값', () => {
+    expect(INSPECTION_STATUSES).toEqual(['pending', 'completed', 'hold'])
   })
 
-  it('ALLOWED_TRANSITIONS covers all statuses', () => {
-    const transitionKeys = Object.keys(ALLOWED_TRANSITIONS)
-    expect(transitionKeys).toHaveLength(10)
-    for (const status of ORDER_STATUSES) {
-      expect(transitionKeys).toContain(status)
-    }
-  })
-
-  it('transition targets are valid statuses', () => {
-    for (const targets of Object.values(ALLOWED_TRANSITIONS)) {
-      for (const target of targets) {
-        expect(ORDER_STATUSES).toContain(target)
-      }
-    }
-  })
-
-  it('terminal states have no transitions', () => {
-    expect(ALLOWED_TRANSITIONS.CONFIRMED).toHaveLength(0)
-    expect(ALLOWED_TRANSITIONS.CANCELLED).toHaveLength(0)
-  })
-
-  it('V2 workflow: APPLIED → SHIPPING → COLLECTED → INSPECTED', () => {
-    expect(ALLOWED_TRANSITIONS.APPLIED).toContain('SHIPPING')
-    expect(ALLOWED_TRANSITIONS.SHIPPING).toContain('COLLECTED')
-    expect(ALLOWED_TRANSITIONS.COLLECTED).toContain('INSPECTED')
-  })
-
-  it('V2 workflow: INSPECTED branches to PRICE_ADJUSTING or IMAGE_PREPARING', () => {
-    expect(ALLOWED_TRANSITIONS.INSPECTED).toContain('PRICE_ADJUSTING')
-    expect(ALLOWED_TRANSITIONS.INSPECTED).toContain('IMAGE_PREPARING')
-  })
-
-  it('all non-terminal states can transition to CANCELLED', () => {
-    for (const status of ORDER_STATUSES) {
-      if (status === 'CONFIRMED' || status === 'CANCELLED') continue
-      expect(ALLOWED_TRANSITIONS[status]).toContain('CANCELLED')
-    }
+  it('CONDITION_LABELS: N=NEW', () => {
+    expect(CONDITION_LABELS['N']).toBe('NEW')
+    expect(CONDITION_LABELS['S']).toBe('S급')
   })
 })
 
-describe('COMMISSION_RATES', () => {
-  it('has all 3 tiers', () => {
-    expect(Object.keys(COMMISSION_RATES)).toHaveLength(3)
-    expect(COMMISSION_RATES.general).toBeDefined()
-    expect(COMMISSION_RATES.employee).toBeDefined()
-    expect(COMMISSION_RATES.vip).toBeDefined()
+describe('settlement 상수', () => {
+  it('SETTLEMENT_STATUSES: 4값 (draft, confirmed, paid, failed)', () => {
+    expect(SETTLEMENT_STATUSES).toEqual(['draft', 'confirmed', 'paid', 'failed'])
   })
 
-  it('rates are valid percentages (0 < rate < 1)', () => {
-    for (const rate of Object.values(COMMISSION_RATES)) {
-      expect(rate).toBeGreaterThan(0)
-      expect(rate).toBeLessThan(1)
-    }
+  it('SOLD_ITEM_STATUSES: 4값 (pending, calculated, settled, returned)', () => {
+    expect(SOLD_ITEM_STATUSES).toEqual(['pending', 'calculated', 'settled', 'returned'])
   })
-})
 
-describe('MEASUREMENT_FIELDS', () => {
-  it('has 8 measurement fields', () => {
-    expect(MEASUREMENT_FIELDS).toHaveLength(8)
+  it('SALES_CHANNELS: 2값', () => {
+    expect(SALES_CHANNELS).toEqual(['smart_store', 'self_mall'])
+  })
+
+  it('MATCH_STATUSES: 3값', () => {
+    expect(MATCH_STATUSES).toEqual(['unmatched', 'auto_matched', 'manual_matched'])
   })
 })
 
-describe('SETTLEMENT_STATUSES', () => {
-  it('has 3 values', () => {
-    expect(SETTLEMENT_STATUSES).toHaveLength(3)
+describe('product 상수', () => {
+  it('PRODUCT_TYPES: 2값', () => {
+    expect(PRODUCT_TYPES).toEqual(['consignment', 'inventory'])
+  })
+
+  it('PHOTO_STATUSES: 4값', () => {
+    expect(PHOTO_STATUSES).toEqual(['pending', 'shooting', 'editing', 'completed'])
+  })
+
+  it('SMARTSTORE_STATUSES: 4값', () => {
+    expect(SMARTSTORE_STATUSES).toEqual(['draft', 'ready', 'uploaded', 'selling'])
+  })
+
+  it('RETAIL_PRICE_SOURCES: 3값', () => {
+    expect(RETAIL_PRICE_SOURCES).toEqual(['naver_estimate', 'manual', 'desired_price'])
   })
 })
 
-describe('SOLD_ITEM_STATUSES', () => {
-  it('has 2 values', () => {
-    expect(SOLD_ITEM_STATUSES).toHaveLength(2)
+describe('notification/batch 상수', () => {
+  it('SMS_STATUSES: 3값', () => {
+    expect(SMS_STATUSES).toEqual(['pending', 'sent', 'failed'])
   })
-})
 
-describe('BATCH_STATUSES', () => {
-  it('has 4 values', () => {
-    expect(BATCH_STATUSES).toHaveLength(4)
+  it('BATCH_STATUSES: 4값', () => {
+    expect(BATCH_STATUSES).toEqual(['running', 'completed', 'partial', 'failed'])
   })
 })

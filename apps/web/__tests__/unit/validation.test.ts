@@ -1,80 +1,93 @@
+/**
+ * Zod 검증 스키마 테스트
+ * WHY: 공용 5개 스키마 통과/거부 검증
+ * HOW: 유효값 PASS + 무효값 FAIL 테스트
+ * WHERE: Phase 1 validation.ts 검증
+ */
 import { describe, it, expect } from 'vitest'
 import {
-  PhoneSchema,
-  UuidSchema,
-  DateSchema,
-  PositiveAmountSchema,
-  PaginationSchema,
+  phoneSchema,
+  sellerCodeSchema,
+  productNumberSchema,
+  orderIdSchema,
+  priceSchema,
 } from '@/lib/utils/validation'
 
-describe('PhoneSchema', () => {
-  it.each([
-    '010-1234-5678',
-    '01012345678',
-    '011-234-5678',
-    '016-1234-5678',
-    '019-1234-5678',
-  ])('accepts valid: %s', (phone) => {
-    expect(PhoneSchema.safeParse(phone).success).toBe(true)
+describe('phoneSchema', () => {
+  it('유효: 01012345678', () => {
+    expect(phoneSchema.safeParse('01012345678').success).toBe(true)
   })
 
-  it.each([
-    '02-1234-5678',
-    '012-1234-5678',
-    '010-123-567',
-    'not-a-phone',
-    '',
-  ])('rejects invalid: %s', (phone) => {
-    expect(PhoneSchema.safeParse(phone).success).toBe(false)
+  it('유효: 01112345678', () => {
+    expect(phoneSchema.safeParse('01112345678').success).toBe(true)
+  })
+
+  it('무효: 하이픈 포함', () => {
+    expect(phoneSchema.safeParse('010-1234-5678').success).toBe(false)
+  })
+
+  it('무효: 짧은 번호', () => {
+    expect(phoneSchema.safeParse('0101234').success).toBe(false)
   })
 })
 
-describe('UuidSchema', () => {
-  it('accepts valid UUID', () => {
-    expect(UuidSchema.safeParse('550e8400-e29b-41d4-a716-446655440000').success).toBe(true)
+describe('sellerCodeSchema', () => {
+  it('유효: 5자리 숫자', () => {
+    expect(sellerCodeSchema.safeParse('92528').success).toBe(true)
+    expect(sellerCodeSchema.safeParse('00001').success).toBe(true)
   })
-  it('rejects non-UUID', () => {
-    expect(UuidSchema.safeParse('not-a-uuid').success).toBe(false)
+
+  it('무효: 4자리', () => {
+    expect(sellerCodeSchema.safeParse('1234').success).toBe(false)
+  })
+
+  it('무효: 문자 포함', () => {
+    expect(sellerCodeSchema.safeParse('1234a').success).toBe(false)
   })
 })
 
-describe('DateSchema', () => {
-  it('accepts YYYY-MM-DD', () => {
-    expect(DateSchema.safeParse('2026-03-04').success).toBe(true)
+describe('productNumberSchema', () => {
+  it('유효: 13자리 숫자', () => {
+    expect(productNumberSchema.safeParse('2602157392528').success).toBe(true)
   })
-  it('rejects invalid format', () => {
-    expect(DateSchema.safeParse('03-04-2026').success).toBe(false)
-    expect(DateSchema.safeParse('2026/03/04').success).toBe(false)
+
+  it('무효: 12자리', () => {
+    expect(productNumberSchema.safeParse('260215739252').success).toBe(false)
+  })
+
+  it('무효: 하이픈 포함', () => {
+    expect(productNumberSchema.safeParse('260215-739252').success).toBe(false)
   })
 })
 
-describe('PositiveAmountSchema', () => {
-  it('accepts positive number', () => {
-    expect(PositiveAmountSchema.safeParse(100).success).toBe(true)
+describe('orderIdSchema', () => {
+  it('유효: YYYYMMDD-XXXXXX', () => {
+    expect(orderIdSchema.safeParse('20260304-000042').success).toBe(true)
   })
-  it('rejects zero', () => {
-    expect(PositiveAmountSchema.safeParse(0).success).toBe(false)
+
+  it('무효: 하이픈 없음', () => {
+    expect(orderIdSchema.safeParse('20260304000042').success).toBe(false)
   })
-  it('rejects negative', () => {
-    expect(PositiveAmountSchema.safeParse(-1).success).toBe(false)
+
+  it('무효: 날짜 7자리', () => {
+    expect(orderIdSchema.safeParse('2026034-000042').success).toBe(false)
   })
 })
 
-describe('PaginationSchema', () => {
-  it('applies defaults', () => {
-    const result = PaginationSchema.parse({})
-    expect(result.page).toBe(1)
-    expect(result.limit).toBe(20)
+describe('priceSchema', () => {
+  it('유효: 양수 정수', () => {
+    expect(priceSchema.safeParse(150000).success).toBe(true)
   })
-  it('coerces string to number', () => {
-    const result = PaginationSchema.parse({ page: '3', limit: '50' })
-    expect(result.page).toBe(3)
-    expect(result.limit).toBe(50)
+
+  it('유효: 0', () => {
+    expect(priceSchema.safeParse(0).success).toBe(true)
   })
-  it('rejects page < 1', () => {
-    expect(PaginationSchema.safeParse({ page: 0 }).success).toBe(false)
+
+  it('무효: 음수', () => {
+    expect(priceSchema.safeParse(-100).success).toBe(false)
   })
-  it('rejects limit > 100', () => {
-    expect(PaginationSchema.safeParse({ limit: 101 }).success).toBe(false)
+
+  it('무효: 소수', () => {
+    expect(priceSchema.safeParse(100.5).success).toBe(false)
   })
 })

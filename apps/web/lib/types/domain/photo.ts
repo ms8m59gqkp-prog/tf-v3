@@ -1,58 +1,29 @@
 /**
- * 사진 분류 및 배치 도메인 타입
- * WHY: 사진 분류 배치 작업의 상태 추적 및 결과 표현
- * HOW: PhotoStatus, ClassifiedGroup, BatchProgress 인터페이스
- * WHERE: photo 서비스, batch.repo에서 참조
+ * 사진 도메인 타입
+ * WHY: V2 photos + photo_uploads 테이블과 1:1 대응
+ * HOW: 인터페이스 정의
+ * WHERE: 사진 관리 관련 코드에서 import
  */
 
-export type PhotoStatus = 'pending' | 'classified' | 'failed'
-export type ShotType = 'flat' | 'model' | 'detail' | 'tag'
-
-export const BATCH_STATUSES = ['running', 'completed', 'partial', 'failed'] as const
-export type BatchStatus = typeof BATCH_STATUSES[number]
-
-export interface ClassifiedFile {
+export interface Photo {
   id: string
-  batchId: string
-  originalFilename: string
-  storagePath: string
-  shotType: ShotType
-  productNumber?: string
-  confidence?: number
-  status: PhotoStatus
-  errorMessage?: string
-  classifiedAt?: string
-  createdAt: string
+  orderItemId: string
+  fileName: string
+  fileUrl: string
+  shotType?: string | null
+  isEdited?: boolean | null
+  editedUrl?: string | null
+  sortOrder?: number | null
+  createdAt?: string | null
 }
 
-export interface ClassifiedGroup {
-  productNumber: string
-  files: ClassifiedFile[]
-  primaryImage?: string
-  shotTypes: ShotType[]
-  totalFiles: number
-}
-
-export interface BatchProgress {
+export interface PhotoUpload {
   id: string
-  batchId: string
-  totalFiles: number
-  processedFiles: number
-  successCount: number
-  failCount: number
-  status: BatchStatus
-  startedAt: string
-  completedAt?: string
-  errorMessage?: string
-  createdAt: string
-  updatedAt: string
-}
-
-export interface BatchResult {
-  batchId: string
-  total: number
-  success: number
-  failed: number
-  failedIds: string[]
-  status: BatchStatus
+  fileName: string
+  fileUrl: string
+  fileSize?: number | null
+  uploadedBy?: string | null
+  isMatched?: boolean | null
+  orderItemId?: string | null
+  uploadedAt?: string | null
 }

@@ -1,101 +1,116 @@
 /**
- * 정산 도메인 타입 — V3 통합 파이프라인
- * WHY: V2 이중 파이프라인(A/B) → V3 단일 통합
- * HOW: SettlementStatus + Settlement + SoldItem 인터페이스
- * WHERE: 정산 서비스, RPC 래퍼에서 참조
+ * 정산 도메인 타입
+ * WHY: V2 정산 관련 5개 테이블과 1:1 대응
+ * HOW: settlements + settlement_items(3필드) + sold_items + sales_records + naver_settlements
+ * WHERE: 정산 관련 모든 코드에서 import
  */
 
-export const SETTLEMENT_STATUSES = ['pending', 'confirmed', 'paid'] as const
-export type SettlementStatus = typeof SETTLEMENT_STATUSES[number]
+export const SETTLEMENT_STATUSES = ['draft', 'confirmed', 'paid', 'failed'] as const satisfies readonly string[]
+export type SettlementStatus = (typeof SETTLEMENT_STATUSES)[number]
 
-export const SOLD_ITEM_STATUSES = ['pending', 'settled'] as const
-export type SoldItemSettlementStatus = typeof SOLD_ITEM_STATUSES[number]
+export const SOLD_ITEM_STATUSES = ['pending', 'calculated', 'settled', 'returned'] as const satisfies readonly string[]
+export type SoldItemStatus = (typeof SOLD_ITEM_STATUSES)[number]
+
+export const SALES_CHANNELS = ['smart_store', 'self_mall'] as const satisfies readonly string[]
+export type SalesChannel = (typeof SALES_CHANNELS)[number]
+
+export const MATCH_STATUSES = ['unmatched', 'auto_matched', 'manual_matched'] as const satisfies readonly string[]
+export type MatchStatus = (typeof MATCH_STATUSES)[number]
 
 export interface Settlement {
   id: string
   sellerId: string
-  sellerName: string
-  sellerType: string
-  commissionRate: number
+  settlementPeriodStart: string
+  settlementPeriodEnd: string
   totalSales: number
-  totalCommission: number
-  totalPayout: number
-  status: SettlementStatus
-  confirmedAt?: string
-  paidAt?: string
-  createdAt: string
-  updatedAt: string
+  commissionRate: number
+  commissionAmount: number
+  returnDeduction: number
+  settlementAmount: number
+  itemCount: number
+  status?: SettlementStatus | null
+  paidAt?: string | null
+  paidBy?: string | null
+  transferReference?: string | null
+  createdAt?: string | null
+  confirmedAt?: string | null
 }
 
-export interface SoldItem {
-  id: string
-  orderId: string
-  productNumber: string
-  brand: string
-  model: string
-  soldPrice: number
-  commission: number
-  payout: number
-  settlementStatus: SoldItemSettlementStatus
-  settlementId?: string
-  soldAt: string
-  createdAt: string
-  updatedAt: string
-}
-
+// V2 settlement_items: 순수 join 테이블 (3컬럼)
 export interface SettlementItem {
   id: string
   settlementId: string
   soldItemId: string
-  productNumber: string
-  brand: string
-  model: string
-  soldPrice: number
-  commission: number
-  payout: number
-  createdAt: string
 }
 
-export interface SettlementQueue {
+// JOIN 결과용 확장 (Phase 4 서비스에서 사용)
+export interface SettlementItemDetail extends SettlementItem {
+  productName: string
+  productNumber?: string | null
+  salePrice: number
+  soldAt: string
+}
+
+// V2 sold_items 20컬럼 — brand, model, commission, payout 없음
+export interface SoldItem {
   id: string
-  settlementId: string
   sellerId: string
-  status: SettlementStatus
-  scheduledAt: string
-  processedAt?: string
-  errorMessage?: string
-  retryCount: number
-  createdAt: string
-  updatedAt: string
+  channel?: SalesChannel | null
+  orderId: string
+  productName: string
+  productNumber?: string | null
+  quantity: number
+  salePrice: number
+  shippingFee?: number | null
+  soldAt: string
+  purchaseConfirmed?: boolean | null
+  purchaseConfirmedAt?: string | null
+  settlementStatus?: SoldItemStatus | null
+  settlementId?: string | null
+  returnProcessed?: boolean | null
+  sourceFile?: string | null
+  createdAt?: string | null
+  productOrderId?: string | null
+  naverProductId?: string | null
+  productCode?: string | null
 }
 
+// V2 sales_records 19컬럼
 export interface SalesRecord {
   id: string
-  productNumber: string
-  brand: string
-  model: string
-  category?: string
-  condition?: string
-  soldPrice: number
-  originalPrice?: number
-  sellerId: string
-  sellerName: string
-  buyerName?: string
-  soldAt: string
-  channel?: string
-  createdAt: string
+  saleDate: string
+  buyerName?: string | null
+  naverOrderNo?: string | null
+  brand?: string | null
+  productName?: string | null
+  productCode?: string | null
+  productNumber?: string | null
+  originalPrice?: number | null
+  discountRate?: number | null
+  saleAmount?: number | null
+  quantity?: number | null
+  finalAmount?: number | null
+  isConsignment?: boolean | null
+  consignmentSeller?: string | null
+  matchStatus?: MatchStatus | null
+  uploadBatch?: string | null
+  createdAt?: string | null
+  uploadSessionId?: string | null
 }
 
+// V2 naver_settlements 13컬럼
 export interface NaverSettlement {
   id: string
-  orderNo: string
-  productOrderNo?: string
-  productName?: string
-  buyerName?: string
-  settleBaseDate?: string
-  settleAmount: number
-  settleStatus?: string
-  matchStatus: string
-  uploadBatch?: string
-  createdAt: string
+  orderNo?: string | null
+  productOrderNo?: string | null
+  category?: string | null
+  productName?: string | null
+  buyerName?: string | null
+  settleBaseDate?: string | null
+  settleScheduledDate?: string | null
+  settleAmount?: number | null
+  settleStatus?: string | null
+  matchStatus?: MatchStatus | null
+  uploadBatch?: string | null
+  createdAt?: string | null
 }
