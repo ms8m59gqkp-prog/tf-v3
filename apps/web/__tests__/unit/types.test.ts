@@ -79,10 +79,10 @@ describe('consignment 상수', () => {
     expect(SELLER_RESPONSES).toEqual(['accepted', 'counter', 'cancelled'])
   })
 
-  it('ALLOWED_TRANSITIONS: completed/rejected 종료 상태', () => {
+  it('ALLOWED_TRANSITIONS: V2 검증 완료 상태 전이', () => {
     expect(ALLOWED_TRANSITIONS.completed).toEqual([])
     expect(ALLOWED_TRANSITIONS.rejected).toEqual([])
-    expect(ALLOWED_TRANSITIONS.approved).toEqual(['completed'])
+    expect(ALLOWED_TRANSITIONS.approved).toEqual(['received', 'on_hold', 'rejected'])
   })
 })
 

@@ -1,0 +1,875 @@
+1차 300줄 구간 구조 정렬 / 충돌 / 과잉 / 누락 기준으로 점검 결과 드립니다.
+
+⸻
+
+✅ 전체 평가 (1차 블록)
+
+전반적 완성도 매우 높습니다.
+현재 통제 체계(Manifesto / Phase / Process / Deep / Agent Ops)와 큰 충돌은 없습니다.
+
+다만, 아래 6가지는 수정 또는 정렬 보강 권장입니다.
+
+⸻
+
+🔴 1️⃣ Phase 체계와 “Preflight 런북” 연결 누락
+
+지금 3.0 Preflight는 매우 좋습니다.
+하지만 Phase Gate 문서와의 연결 고리가 없습니다.
+
+현재 Phase Gate에는:
+
+DB 영향 변경 시 DB 스냅샷 필수
+Preflight 없이 제약 추가 → FAIL
+
+이 있는데,
+
+이 플랜 문서에서는:
+	•	“사전 조건”이라고만 쓰여 있고
+	•	Phase Gate와 연결된다는 명시가 없음
+
+권장 보강 (짧게 추가)
+
+3.0 상단에 한 줄:
+
+이 Preflight는 Phase 0 PASS의 선행 필수 조건이다.
+스냅샷 미첨부 시 Phase FAIL로 간주한다.
+
+이 한 줄이면 Phase Gate와 완전 정렬됩니다.
+
+⸻
+
+🔴 2️⃣ Ralph Loop 연결 없음 (고위험 변경 영역)
+
+Rev.4는 DB/RLS/RPC/세션/배치 변경이 들어갑니다.
+
+이건 L3 고위험입니다.
+
+그런데 이 플랜 문서 안에 Ralph Loop 적용 의무가 명시되어 있지 않습니다.
+
+Deep Checklist에는 넣었지만,
+플랜에는 아직 없음.
+
+권장 삽입 위치
+
+3.1 마이그레이션 섹션 하단에:
+
+이 Phase는 Ralph Loop L3 안정성 반복 규칙 적용 대상이다.
+동시성 3 / RLS 3 / 운영 2 시나리오 충족 + 3연속 PASS 확보 후에만 다음 Phase 진행.
+
+짧게 넣으면 충분합니다.
+
+⸻
+
+🔴 3️⃣ 3+1 레이어 설명은 좋은데 Architecture Gate 연결 문구 없음
+
+아키텍처 블루프린트는 잘 되어 있습니다.
+
+하지만 다음 문장이 없습니다:
+
+Architecture Gate 위반 시 Phase 진행 금지
+
+이 문구가 있어야 Process 문서와 닫힙니다.
+
+⸻
+
+🔴 4️⃣ 줄수 제한 — Simplify 트리거와 연결 없음
+
+줄수 규칙은 좋습니다.
+하지만 현재는 “설명”이고 “게이트”가 아닙니다.
+
+Simplify는:
+	•	2회 재오픈
+	•	3회 PR 수정
+	•	70회 도달
+
+시 개입하도록 되어 있습니다.
+
+줄수 초과도 Simplify 트리거로 연결해야 통제 체계와 맞습니다.
+
+권장 한 줄:
+
+줄수 초과는 구조 분해 검토(Simplify Trigger) 대상이다.
+
+⸻
+
+🔴 5️⃣ UNIQUE 제약 추가 섹션 — CONCURRENTLY 언급 없음
+
+Deep Checklist에는:
+
+인덱스는 가능하면 CONCURRENTLY
+
+있습니다.
+
+여기 002_unique_constraints.sql에는 그 언급이 없습니다.
+
+운영 중 DB라면 반드시 고려해야 합니다.
+
+⸻
+
+🔴 6️⃣ 63개 라우트 명시 — 유지보수 리스크
+
+지금:
+
+Phase 5: API 라우트 (63개)
+
+이렇게 고정 숫자를 박아두면
+하나 추가될 때마다 문서 수정 필요합니다.
+
+권장 방식:
+
+API 라우트 (현재 63개, 증감 시 동기화 필수)
+
+⸻
+
+🟢 좋은 점
+	•	3+1 레이어 설득력 충분
+	•	줄수 제한 현실적
+	•	Preflight 런북 매우 탄탄
+	•	UNIQUE 추가 전 중복 탐지 강조 좋음
+	•	파일 구조 명확
+	•	Rev 변경 이력 체계적
+	•	교리 v2.0 연결 명시 좋음
+
+⸻
+
+🔥 중요한 질문 1개
+
+이 플랜은:
+	•	선언 문서인가?
+	•	실행 명세서인가?
+
+현재는 둘이 약간 섞여 있습니다.
+
+예:
+
+왜 3+1인가 (설명)
+HOW: DROP + ADD (실행 명세)
+
+이건 나쁜 건 아닙니다.
+하지만 2000줄 전체라면 설명은 별도 appendix로 빼는 게 더 깔끔할 수 있습니다.
+
+⸻
+	상태
+통제 체계 충돌	없음
+Phase Gate 정렬	보강 1줄 필요
+Ralph Loop 연결	1줄 필요
+Architecture Gate 연결	1줄 필요
+Simplify 트리거 연결	1줄 필요
+운영 안전성(CONCURRENTLY)	
+좋습니다. 방금 300줄 블록은 Phase Gate / Deep Checklist / Architecture Spec / Process / 교리 v2.0와 비교했을 때, “실행 명세”로서 거의 완성형입니다.
+다만 즉시 FAIL 급 2개, 운영 리스크 2개, 정렬 보강 3개가 있습니다.
+
+아래는 왜곡 없이, 딱 필요한 지점만 짚습니다.
+
+⸻
+
+🔴 즉시 FAIL 급 (반드시 고쳐야 함)
+
+1) orders RLS가 현재 “과잉 허용” 상태로 남아있음
+
+당신이 아래에서 올바르게 수정했지만, 3.1.4에 이미 위험한 정책이 들어가 있습니다.CREATE POLICY orders_anon_read ON orders
+  FOR SELECT TO anon USING (true);
+CREATE POLICY orders_anon_update ON orders
+  FOR UPDATE TO anon
+  USING (status = 'IMAGE_COMPLETE');이건 tf-v3 Phase Gate의 FAIL 조건에 정면 위배입니다(“USING(true) 존재”).
+또, Deep Checklist의 RLS 최소권한 원칙에도 위배.
+
+✅ 해결 방향은 이미 당신이 3.1.8에서 제시한 대로 “토큰 기반”으로 축소하는 겁니다.
+
+권장 수정 (플랜 문서 정렬 기준)
+	•	3.1.4에는 orders 정책을 넣지 말고, consignment_requests만 남기거나
+	•	3.1.4에서 orders 정책은 “(임시/폐기 예정)”로 명시하고 즉시 제거,
+orders는 3.1.8에서만 최종본으로 정의되게 구조를 정리하는 게 깔끔합니다.
+
+결론: 현재 상태 그대로면 Phase 0 문서 기준으로 FAIL입니다.
+
+⸻
+
+2) orders_anon_update 정책이 UPDATE 대상 row를 제한하지 못함
+
+3.1.4의 orders_anon_update는 USING (status='IMAGE_COMPLETE')만 있고
+토큰도, row 지정도 없습니다.
+
+→ anon이 IMAGE_COMPLETE 상태인 row들에 대해 업데이트가 가능해질 수 있습니다.
+이건 Phase Gate/RLS 실측 FAIL 조건에 걸립니다(anon이 다중 row 수정 가능).
+
+✅ 3.1.8에서 토큰+상태 둘 다 걸었으니, 3.1.4 정책은 제거/정리 필요.
+
+⸻
+
+🟠 운영 리스크 (FAIL은 아닌데 터질 확률 높음)
+
+3) current_setting('request.headers', true) 방식은 “환경 의존”이라 단일 소스 확정 필요
+
+문서에 이미:
+
+표준화된 함수/세팅을 프로젝트에서 1개로 확정해야 한다.
+
+라고 써놨는데, 이건 명세에서 한 단계 더 닫아야 합니다.
+
+✅ 권장: Phase 1에 “헤더→RLS 토큰 전달 방식 단일화” 항목을 박으세요.
+
+예:
+	•	lib/auth.ts 또는 lib/api/middleware.ts에서
+	•	x-hold-token을 받아
+	•	“service_role로 검증 후 업데이트”로 갈지,
+	•	“RLS에서 current_setting”으로 갈지
+
+둘 중 하나를 확정해야 합니다.
+(지금은 “둘 다 가능”이라 문서가 열려 있습니다.)
+
+⸻
+
+4) RPC create_order_with_items는 중간 실패 시 “부분 데이터”가 남을 수 있음
+
+plpgsql 함수는 기본적으로 트랜잭션 컨텍스트에서 실행되지만,
+지금 함수 구조는 중간 루프에서 예외가 터지면 order는 insert된 상태로 남을 가능성을 운영에서 의심하게 됩니다(환경/호출 경로에 따라).
+
+✅ 권장 보강(문서 레벨):
+	•	“RPC는 원자성 보장(예외 시 전체 롤백)”을 테스트/증거 항목으로 명시
+	•	또는 함수 내에서 의도적으로 “검증 먼저 → insert” 순서로 바꾸는 방안 고려
+
+Deep Checklist 3.3 원자성 항목과 맞춰야 합니다.
+
+⸻
+
+🟡 정렬 보강 (지금 넣으면 문서가 ‘헌법화’ 됨)
+
+5) Phase 0 검증 게이트에 “Ralph Loop 적용 대상” 한 줄이 필요
+
+현재 Gate 체크리스트는 훌륭하지만,
+Ralph Loop가 “Meta Trigger”로만 존재하면 약합니다.
+
+✅ 권장: 3.2 검증 게이트 하단에 1줄 추가
+	•	Phase 0은 L3 변경으로 Ralph Loop 적용 대상이다.
+(동시성 3 / RLS 3 / 운영 2 + 3연속 PASS 확보)
+
+문장만 넣으면 됩니다. 길게 설명할 필요 없습니다.
+
+⸻
+
+6) 3.1.8에서 “토큰 전달 방식 불안정 시 전환”은 좋지만, 전환 기준이 필요
+
+“불안정하면 전환”은 애매합니다.
+
+✅ 권장: 전환 조건을 명시
+예:
+	•	실측 3회 중 1회라도 헤더 파싱 실패 → RLS 방식 폐기, Route 검증 방식 채택
+
+이러면 자동 판정 가능해집니다.
+
+⸻
+
+7) Phase 0 게이트 체크리스트에 “orders USING(true) 0건”을 명시하면 더 강해짐
+
+지금 이미 grep-guards 같은 문서가 있으니, DB에서도 동일하게:
+	•	pg_policies에서 USING (true) 정책 존재 여부를 체크하는 항목
+
+한 줄 넣으면 “USING(true) 금지”가 완전히 닫힙니다.
+
+⸻
+
+✅ 요약 결론
+
+현재 블록에서 가장 큰 문제는 단 하나입니다:
+
+3.1.4의 orders RLS 정책이 3.1.8의 SEC/OPS 최종 정책과 충돌하며, 그 자체로 FAIL이다.
+
+이거만 정리하면 Phase 0은 거의 완벽합니다.
+
+⸻
+
+다음 300줄 계속 주세요.
+(그리고 가능하면, 3.1.4를 어떻게 정리할지 당신 결정을 먼저 반영해서 플랜에 반영하는 게 가장 깔끔합니다.)네, 이어서 받은 블록(Phase 1 후반~Phase 4 초반) 기준으로 **“수정할 거 있냐”**에 대한 답을 명확히 드리겠습니다.
+지금 상태는 전반적으로 잘 짜여 있는데, Phase Gate/Architecture/Process 규약과 충돌하거나 운영에서 터질 수 있는 지점이 몇 개 있습니다.
+
+아래는 전체 수정 완성본이 아니라, 당신이 준 플랜 원문을 유지하면서 “여기만 고치면 문서가 닫힌다” 수준의 필수 수정 포인트입니다.
+
+⸻
+
+🔴 즉시 FAIL 또는 규약 충돌
+
+1) getPhotoUrl() 구현이 “클라이언트/서버 경계”를 깨고 있음
+
+지금 코드:import { createClient } from '@/lib/supabase/client'
+
+export function getPhotoUrl(...) {
+  ...
+  const supabase = createClient()
+  const { data } = supabase.storage.from('photos').getPublicUrl(...)
+  return data.publicUrl
+}	•	getPublicUrl()은 네트워크 호출이 아니라도, createClient()가 브라우저/서버 어디서 도는지가 중요합니다.
+	•	Phase 6 MUST: getPhotoUrl 사용이라고 했으니, 이 함수가 프론트에서 호출될 가능성이 높습니다.
+	•	그러면 process.env.PHOTO_STORAGE_MODE는 클라이언트에서 안전하게 읽히지 않거나(Next.js 환경변수 규칙) 빌드 타임에 고정되어 의도와 다르게 동작할 수 있습니다.
+
+✅ 문서 규약 관점에서 “단일 함수 강제”는 맞는데, 구현은 아래 중 하나로 닫아야 합니다.
+
+선택지 A (권장, 단순):
+	•	getPhotoUrl()은 순수 문자열 조합만 한다.
+	•	supabase public url base는 NEXT_PUBLIC_PHOTO_PUBLIC_BASE_URL 같은 형태로 클라에서 읽을 수 있게 둔다.
+
+선택지 B (서버 전용으로 닫기):
+	•	getPhotoUrlServer()와 getPhotoUrlClient()로 나누고,
+	•	Phase 6에서는 client 버전만 쓰게 규약화.
+
+지금 형태는 “단일 함수” 컨셉은 좋은데, 경계가 열려 있어서 운영에서 깨질 확률이 큽니다.
+
+⸻
+
+2) repo 예시들이 select('*')를 사용함 (규약 충돌 가능)
+
+Phase Gate / Process / Architecture Spec에서 SELECT * 금지를 넣으셨죠.
+
+그런데 Phase 2 원칙 예시엔:supabase.from('sellers').select('*')
+...
+supabase.from('orders').select('*', { count: 'exact' })이건 “예시”라도 문서에 들어가면 에이전트가 그대로 복붙합니다.
+✅ 해결: 예시는 select('id,name,phone,...')로 바꿔서 규약과 일치시키는 게 맞습니다.
+
+⸻
+
+🟠 운영 리스크 (지금 고치면 훨씬 강해짐)
+
+3) PaginationSchema가 querystring 현실과 안 맞을 수 있음page: z.number().int().min(1).default(1)Next.js에서 query는 보통 문자열로 옵니다.
+Phase 5에서 route별 schema.ts에 둔다면 거기서 z.coerce.number()로 해결 가능하지만, 공용 스키마로 놔두면 에이전트가 그대로 써서 항상 validation fail 날 수 있습니다.
+
+✅ 권장:
+	•	공용 PaginationSchema만큼은 z.coerce.number()로 정의하거나,
+	•	“이 스키마는 body용” 같은 제약을 한 줄로 닫아주세요.
+
+⸻
+
+4) .range() 검증 게이트가 “목록 함수 수”를 어떻게 정의하는지 불명확
+
+게이트가 자동 판정 가능하려면,
+	•	“목록 함수”의 정의(예: findMany/list/search) 네이밍 컨벤션이 필요합니다.
+
+✅ 권장(문서 한 줄):
+	•	목록 함수는 list*/search* 접두사를 강제
+	•	그러면 grep으로 “목록 함수 수”를 기계적으로 셀 수 있습니다.
+
+⸻
+
+5) classifyBatch에서 failedIds 중복 push 위험result.failedIds.push(id)
+...
+result.failedIds.push(...productIds.slice(productIds.indexOf(id) + 1))	•	id가 slice 범위에 다시 들어가면 중복 가능(케이스 따라).
+	•	운영상 큰 문제는 아닐 수 있지만, “failedIds는 재시도 대상”이라면 중복은 곧 혼란입니다.
+
+✅ 권장:
+	•	failedIds는 Set으로 누적 후 배열화(문서 규칙 수준으로만 명시해도 됨)
+
+⸻
+
+🟡 문서 완성도 보강 (헌법화에 가까워짐)
+
+6) Phase 1 검증 게이트에 “Zod 5개 = 정확히 5개” 자동 판정 방식이 필요
+
+지금은 선언만 있음:
+	•	lib/utils/validation.ts에 스키마 5개만
+
+✅ 권장:
+	•	export const 개수를 grep으로 세는 규칙을 넣거나,
+	•	파일 상단에 “공용 5개만” 목록을 고정해서 diff로 확인 가능하게 만드세요.
+
+⸻
+
+✅ 결론: “더 수정할 거 없냐?”에 대한 답
+
+있습니다. 핵심 2개는 반드시 고쳐야 문서끼리 충돌이 없어집니다.
+	1.	getPhotoUrl()의 경계/환경변수/클라-서버 동작을 닫기
+	2.	repo 예시에서 select('*') 제거 (규약과 충돌)
+
+그 외(페이지네이션 coerce, list 함수 네이밍, failedIds dedupe, Zod 5개 자동판정)는 “강화 옵션”인데, 지금 단계에서 넣으면 문서가 더 단단해집니다.
+
+⸻
+네. 지금 주신 구간(Phase 5~8) 기준으로 **“문서 규약 충돌/운영 리스크/게이트 자동판정 가능성”**만 딱 짚어서 고칠 포인트를 정리해 드리겠습니다. (존대 유지)
+
+⸻
+
+🔴 즉시 FAIL/규약 충돌급
+
+1) lib/api/response.ts 예시가 NextResponse import 누락 + cache header가 “오작동 가능”
+
+지금 예시는 NextResponse를 import 하지 않았고, 그 자체로 에이전트 복붙 시 TS 에러 유발입니다(= 즉시 FAIL).
+
+또 Cache-Control: s-maxage=..., stale-while-revalidate에서 stale-while-revalidate는 보통 stale-while-revalidate=<seconds> 형태로 쓰는데(환경에 따라 다름), “표준”이라고 박아두면 운영에서 해석이 다를 수 있습니다.
+
+✅ 문서 차원의 최소 수정:
+	•	import { NextResponse } from 'next/server'를 예시 상단에 포함
+	•	cacheHint는 “선택/옵션”으로만 두고, 표준 강제는 게이트로 만들지 말기
+
+⸻
+
+2) Phase 5 “표준 핸들러 패턴”이 Sentry import 누락
+
+패턴 내에서 Sentry.captureException(e)를 쓰는데 import가 없습니다 → 복붙 즉시 TS 에러.
+
+✅ 최소 수정:
+	•	패턴에 import * as Sentry from '@sentry/nextjs' 포함
+
+⸻
+
+3) /api/health 규약과 예시 코드가 정면 충돌
+
+당신이 문서에서 “토큰 없으면 404/401 + status만 반환 + 상세 숨김”이라고 보안 경계를 강제했는데, 코드 예시는 토큰 검사 없이 checks를 항상 계산/반환하고 있습니다.
+
+이건 문서 자체가 서로 모순이라서, 에이전트가 따라가면 보안 게이트 FAIL 나옵니다.
+
+✅ 여기서 닫아야 합니다(둘 중 하나):
+	•	(권장) 토큰 없으면 early return: { status }만 반환(체크/latency/error 숨김)
+	•	토큰 있으면 checks 계산 및 반환
+
+추가로, 토큰 없을 때도 체크를 계산해버리면 “외부에서 부하 유발”이 됩니다. early return이 더 안전합니다.
+
+⸻
+
+4) Phase 5 게이트 항목: ls app/api/**/schema.ts는 자동판정이 깨질 가능성
+
+** glob은 shell 옵션/환경에 따라 동작이 달라서 “기계적 판정” 기준으로는 불안정합니다.
+
+✅ 최소 수정:
+	•	검증 명령을 find app/api -name schema.ts | wc -l 같은 형태로 표준화
+
+⸻
+
+🟠 운영 리스크 / 규칙 불명확(지금 닫으면 강해짐)
+
+5) “DB-우선 응답” 게이트가 현재 문장으로는 자동판정 불가능
+
+게이트에:
+
+“모든 서비스에서 DB 작업 후 Response 생성 확인”
+
+이건 사람이 읽으면 알지만, 기계가 판정하기는 어렵습니다.
+
+✅ 문서에 “자동판정 방식”을 한 줄이라도 박아야 합니다. 예:
+	•	route.ts에서 ok() 호출 전에 반드시 service.*가 db write 결과를 반환하도록 강제
+	•	또는 lib/api/response.ok()는 route.ts에서만 호출(서비스 레이어 금지) 같은 규칙으로 닫기
+
+⸻
+
+6) 업로드 세션 정책: “클라이언트가 sessionId 보관”은 맞는데, 최초 발급 타이밍을 닫아야 합니다
+
+현재 예시는:
+	•	incoming 없으면 서버가 sessionId 생성 → ok({ sessionId })
+
+좋습니다. 다만 “최초 업로드의 재시도”가 언제나 같은 sessionId를 쓰려면,
+	•	클라이언트가 최초 응답을 저장한 후, 이후 요청에서 헤더로 재전송한다
+를 정확히 MUST로 고정하는 게 안전합니다(이미 거의 적혀있지만, “정책(필수 확정)” 아래에 MUST 형태로 한 줄 더 닫는 게 좋습니다).
+
+⸻
+
+7) Phase 6 inline style 규칙: 커스텀 ESLint 규칙 정의가 없으면 ‘게이트’가 아니라 ‘구호’가 됩니다
+
+여기서도 자동판정 가능하게 하려면:
+	•	룰 이름(예: no-static-inline-styles)
+	•	허용/금지 조건(정적 색상 금지, 동적 width 허용 등)
+	•	적용 위치(eslintrc)
+까지 최소 정의 블록이 필요합니다.
+
+⸻
+
+🟡 구조/보안 관점에서 추가로 보강하면 좋은 것
+
+8) /api/health 체크 함수의 데이터 접근은 “SELECT * 금지”와 일치하게 고정
+
+예시엔 SELECT 1 FROM sellers LIMIT 1이어서 괜찮습니다.
+다만 checkStorage()에서 listBuckets()는 권한/환경에 따라 실패하기 쉬워서, “외부 토큰 있을 때만 수행”이 특히 중요합니다(위 3번과 연결).
+
+⸻
+
+✅ 결론 (이 구간에서 “반드시” 고쳐야 할 3개)
+	1.	표준 핸들러 패턴: NextResponse/Sentry import 누락 → TS 에러 유발 (즉시 FAIL)
+	2.	/api/health: “보안 경계 규약”과 “코드 예시” 모순 → 규약 붕괴
+	3.	schema.ts 게이트: ls app/api/**/schema.ts → 환경 의존, 자동판정 불안정
+
+⸻
+
+원하시면, 다음 단계로는네, 이 구간은 전체적으로 설계가 잘 잡혀있고, 지금 추가로 주신 11.3~13.x에서 “문서 규약 관점”으로 정리만 조금 더 하면 완성도가 확 뛰는 포인트가 몇 개 있습니다. (말씀하신 “왜곡 없이” 기준으로, 수정 권고만 드립니다)
+
+⸻
+
+1) 11.3 ESLint 커스텀 규칙: 지금 버전은 “우회 가능”합니다 (강화 권고)
+
+현재 must-check-auth.js는 requireAdmin을 호출한 결과를 변수에 담는지만 봅니다.
+
+하지만 아래처럼 변수에 담고도 반환값을 무시하면 통과해버립니다.const authErr = await requireAdmin(req)
+// authErr를 사용하지 않고 진행 → 사실상 미체크또 아래도 통과할 수 있습니다.const authErr = await requireAdmin(req)
+doSomething() // authErr 체크 없이 진행✅ 문서/게이트 목적(“기계적 판정”)에 맞추려면 룰을 “반환값을 담는 것”이 아니라:
+	•	await requireAdmin(req) 호출이 있으면,
+	•	같은 스코프 내에서 if (authErr) return authErr 또는 return authErr ?? ... 같은 패턴 사용을 강제
+
+…까지 가야 “게이트”가 됩니다.
+
+즉, 지금 룰은 Tier 0(초급) 가드고, “반환값 사용 강제”까지는 못 합니다.
+
+결론: v1.0으로는 “있으면 좋음” 수준이고, “게이트”로 쓰려면 강화판이 필요합니다.
+
+⸻
+
+2) 11.4 Phase 8 자동 검증: 몇 개는 판정 기준이 애매합니다 (정리 권고)
+
+(A) tsc --strict --noEmit | wc -l 는 의미가 없습니다
+
+tsc 출력은 에러가 없으면 보통 0줄이 아니라, 설정에 따라 경고/로그가 섞이거나 환경마다 달라질 수 있습니다.
+
+✅ **“tsc exit code”**로 판정해야 기계적입니다.
+	•	pnpm tsc --noEmit가 exit 0인지로 판정
+
+(B) grep -r ... | wc -l도 “0이면 PASS”로는 괜찮지만, 스코프를 닫아야 합니다
+
+예: readFileSync/writeFileSync를 lib/app에서 금지하면
+테스트/스크립트 영역까지 같이 걸릴 수 있습니다.
+
+✅ lib/ app/로 스코프를 제한한 건 좋은데,
+	•	scripts/, **tests/는 제외할지 여부를 문서에 확정하는 게 안전합니다.
+
+⸻
+
+3) 12. 테스트 전략: “회귀(Regression)”과 Ralph Loop가 만나는 지점을 문서상으로 닫아야 합니다
+
+당신이 합의한 Ralph Loop는
+	•	누적 회귀(가로축) + 최소 증거 깊이(세로축) + 연속 3 PASS + 최대 70
+이 구조입니다.
+
+그런데 테스트 전략 표는 “회귀 ~75”라고만 되어 있어서,
+Ralph Loop에서 말하는 “연속 3PASS”의 증거가 무엇인지(어떤 스위트를 3번 돌리는지)가 아직 문서상으로 연결이 느슨합니다.
+
+✅ 나중에 Process/Phase 쪽에 이미 넣으실 거지만,
+Plan 문서에서도 최소한 아래 1줄은 박아두는 게 “해석 흔들림”을 막습니다.
+	•	“Ralph Loop 연속 PASS는 **Phase Gate MUST 세트(= tsc, eslint, vitest, build)**를 3회 연속 통과로 정의”
+
+(이게 없으면 누군가는 “E2E 3회”라고 해석할 수 있고, 누군가는 “unit만 3회”라고 해석할 수 있습니다.)
+
+⸻
+
+4) 13.2~13.3 병렬 팀 운영: 실전 충돌 포인트 2개만 닫으면 완벽합니다
+
+(A) “같은 날 3팀이 route.ts를 동시에 만든다” → 충돌 위험은 실제로 큽니다
+
+라우트 디렉토리 단위 분리는 좋지만,
+	•	lib/api/response.ts, lib/api/middleware.ts, 공통 error 타입 등 공용 파일이 끼는 순간 충돌합니다.
+
+✅ 해결은 이미 Ops Guide에 있는 원칙(공용 파일 1명만)인데,
+이 Plan의 Day5에도 “공용 파일 수정 담당 1명”을 명시해 두면 더 단단해집니다.
+
+(B) Cross-team QA에서 라우트 카운트 검증 커맨드가 불안정합니다
+
+당신 계획에 ls app/api/**/route.ts | wc -l 같은 류가 반복되는데,
+glob 환경 의존이 있습니다.
+
+✅ find app/api -name route.ts | wc -l로 표준화하는 게 안전합니다.
+
+⸻
+
+5) 한 줄 결론: “큰 수정 필요 없음 / 자동판정 커맨드와 ESLint 룰만 보강”
+	•	Phase 8 자동 검증 커맨드에서 tsc | wc -l → exit code 기반으로 정리
+	•	route/schema 카운트는 find로 표준화
+	•	must-check-auth는 지금 상태로는 “체크했는지”가 아니라 “담았는지”만 보므로, 게이트로 쓰려면 강화 필요
+	•	Ralph Loop의 “연속 3PASS”의 대상 테스트 세트 정의를 Plan에도 1줄로 연결하면 기억 오염/해석 분기 방지
+
+⸻
+### PSIM-05: "Day 5 — Team Gamma 라우트 구현 중 새로운 공용 스키마 필요 발견"
+
+**시나리오**: Gamma가 `/api/admin/sales/ledger` 라우트 구현 중, `DateRangeSchema` (시작일~종료일 쌍 + 시작 ≤ 종료 검증)가 필요. settlement/generate에서도 쓰이는 패턴. lib/utils/validation.ts에 추가해야 할까, 각 schema.ts에 정의할까?
+
+| 단계 | 발생 | 위험 | 대응 |
+|------|------|------|------|
+| 1 | Gamma: DateRangeSchema 필요 → lib/utils/validation.ts에 추가하고 싶음 | **lib/ 수정 = 읽기 전용 위반** | Gamma 작업 중단 |
+| 2 | Alpha: settlement/generate에서 이미 `DateSchema` 2개로 개별 정의 | Alpha는 co-located schema.ts에 넣음 | 문제 없음 |
+| 3 | Gamma가 lib/ 수정 요청 → CTO Lead 승인 대기 | **Gamma 1명 유휴 + CTO Lead 응답 시간** | 지연 |
+| 4 | CTO Lead: "co-location 원칙에 따라 각 schema.ts에 중복 정의" 결정 | 코드 중복 2건 발생 | 트레이드오프 |
+| 5 | 나중에 DateRange 검증 로직이 달라지면? | 2곳 수정 필요 | 허용 범위 (2건) |
+
+**판정**: ⬇️ **LOW RISK**
+- co-location 원칙이 이미 이 상황을 예상하고 설계됨
+- 공용 스키마는 Phase 1에서 5개만 정의, 나머지는 의도적으로 중복 허용
+
+**대응책**:
+1. **Day 5 진입 시 명확화**: "새로운 공용 스키마 필요 시 → schema.ts에 각자 정의. lib/ 추가 금지. Day 8에서 중복 3건 이상 발견 시 lib/로 승격"
+2. **의사결정 기준 문서화**: "중복 2건 이하 = co-located 유지, 3건 이상 = lib/ 승격 후보"
+3. **비동기 질문**: CTO Lead에게 보고하되 **응답 기다리지 않고 co-located로 선진행** → CTO Lead가 나중에 교정
+
+---
+
+### PSIM-06: "Day 5 — Team Gamma 조기 완료 → 유휴 + 성급한 main merge"
+
+**시나리오**: Gamma(Tier 3 + 미분류 26개)가 상대적으로 간단한 라우트를 담당해 Alpha/Beta보다 3시간 먼저 완료. Gamma Lead가 "우리 팀 완료, main에 먼저 merge하겠다"고 판단.
+
+| 단계 | 발생 | 위험 | 대응 |
+|------|------|------|------|
+| 1 | Gamma: 26개 라우트 전부 구현 + QA-G 통과 | 정상 | Gamma 유휴 상태 진입 |
+| 2 | Gamma Lead: "Cross-QA 기다리지 않고 main에 먼저 merge" 결정 | **Alpha/Beta 작업 중 main이 변경됨** | Alpha/Beta가 pull 시 충돌 가능 |
+| 3 | Alpha: settlement/generate 라우트에서 `lib/api/response.ts`의 ok() 함수 사용 중 | Gamma가 동일 파일의 다른 라우트에서 같은 import 사용 | **물리적 충돌은 없지만 merge 순서에 따라 tsc 에러 가능** |
+| 4 | Beta: 아직 작업 중인데 main이 바뀜 → `git pull` 해야 하는지 혼란 | **Beta 작업 중단 + merge 충돌 해소 시간** | 1시간 낭비 |
+| 5 | Cross-team QA가 "어떤 코드가 merge되었고 어떤 코드가 아직인가" 파악 불가 | **QA 범위 혼란** | 검증 누락 가능 |
+
+**판정**: ⚠️ **MEDIUM RISK**
+- 팀 속도 불균형은 반드시 발생 (Tier 3이 Tier 1보다 간단)
+- 성급한 merge가 다른 팀의 작업 흐름을 교란
+- Cross-team QA의 "전팀 완료 후 시작" 전제 조건 붕괴
+
+**대응책**:
+1. **merge 금지 규칙**: "Cross-team QA 완료 전 어떤 팀도 main에 merge 금지. 각 팀은 자기 브랜치에만 커밋"
+2. **조기 완료 팀 재배치**: Gamma 완료 → Gamma 에이전트를 Alpha/Beta 지원에 투입 (라우트 리뷰, 추가 E2E 테스트 작성)
+3. **merge 순서 명시**: Cross-team QA 후 CTO Lead가 Alpha → Beta → Gamma 순서로 순차 merge (충돌 최소화)
+4. **유휴 시간 활용 목록**: 조기 완료 팀은 `v3-route-convention.md` 대비 전체 코드 일관성 사전 점검
+
+---
+
+### PSIM-07: "Day 6 — Team Alpha 공유 컴포넌트 지연 → Team Beta 완전 대기"
+
+**시나리오**: Team Alpha가 공유 컴포넌트 8개(Table, Modal, Form, Button, Toast, Layout, Sidebar, SearchInput) 중 Table 컴포넌트에서 예상 외 복잡성 발견. 정렬+필터+페이지네이션 조합이 150줄 초과. 3시간 지연.
+
+| 단계 | 발생 | 위험 | 대응 |
+|------|------|------|------|
+| 1 | Table 컴포넌트 150줄 초과 → 분리 설계 필요 | Alpha 내부 지연 | Alpha Lead가 useTableSort 훅 분리 결정 |
+| 2 | Team Beta는 공유 컴포넌트 대기 중 | **Beta 전체 유휴 (11페이지 작업 불가)** | 3시간 × 5명 = 15명·시간 낭비 |
+| 3 | Beta가 기다리다 못해 자체 임시 컴포넌트로 시작 | **나중에 Alpha 컴포넌트로 교체 시 이중 작업** | 더 큰 낭비 |
+| 4 | Day 6을 1일 내 완료 불가 → Day 7로 밀림 | **Phase 7, 8도 연쇄 지연** | 전체 일정 +1일 |
+
+**판정**: 🔴 **HIGH RISK — 병렬화의 최대 약점**
+- 공유 컴포넌트가 **병목(bottleneck)**. Alpha 선행 실패 시 Beta 전체 대기.
+- Day 6 2팀 병렬의 실제 효과가 "1.5팀 순차"로 퇴화할 수 있음.
+
+**대응책**:
+1. **공유 컴포넌트 인터페이스 선정의 (Day 5 저녁)**: Day 5 Cross-QA 후 CTO Lead가 8개 컴포넌트의 **props 인터페이스만** 미리 정의 → `components/types.ts`로 공유
+2. **스텁 컴포넌트 전략**: Alpha가 8개 컴포넌트의 **빈 껍데기(스텁)**를 30분 내 생성 → Beta 즉시 시작 → Alpha가 내부 구현 완성
+3. **비의존 페이지 선행**: Beta의 11개 중 공유 컴포넌트 미사용 페이지(login, database) 먼저 구현 → 대기 시간 활용
+4. **최악의 경우**: 공유 컴포넌트 완성 전 Beta 전원 Day 5 잔여 작업(E2E 추가, 라우트 리뷰) 지원 → 유휴 최소화
+
+---
+
+### PSIM-08: "Day 6 — Team Beta가 Day 5에서 누락된 API 라우트 발견"
+
+**시나리오**: Beta UI-B1이 `admin/photos` 페이지 구현 중, 사진 분류 결과를 조회하는 `GET /api/admin/photos/[id]/classify-result` 라우트가 Day 5 63개 목록에 없었음을 발견. V2에서는 이 기능이 단일 페이지 내 inline 호출이었지만, V3에서는 별도 API가 필요.
+
+| 단계 | 발생 | 위험 | 대응 |
+|------|------|------|------|
+| 1 | Beta UI-B1: photos 페이지에서 분류 결과 조회 API 호출 필요 | **Day 5에서 만들어야 했던 라우트가 누락** | Beta 작업 중단 |
+| 2 | 라우트 추가하려면 `app/api/admin/photos/[id]/classify-result/route.ts` 생성 필요 | **Day 5 산출물(63개) 검증이 불완전했다는 의미** | Cross-team QA 신뢰성 문제 |
+| 3 | lib/services/photo.service.ts의 함수는 존재 (Day 4에서 생성) | 서비스는 있지만 라우트 엔트리포인트가 없음 | 라우트만 추가하면 됨 |
+| 4 | Beta가 직접 라우트 추가 → **Day 6은 프론트엔드만 해야 하는데 API도 만듦** | Phase 경계 침범, QA 범위 확장 | 일정 지연 |
+
+**판정**: ⚠️ **MEDIUM RISK**
+- 63개 라우트 목록이 V2 전수 분석에서 도출되었지만, V3에서 새로 필요한 라우트를 놓칠 수 있음
+- Day 5 Cross-team QA가 "63개 존재 확인"만 했지 "프론트엔드가 실제로 필요한 모든 API 존재 확인"은 안 함
+- Phase 경계를 넘는 작업이 발생하면 검증 체계가 흔들림
+
+**대응책**:
+1. **Day 5 Cross-QA에 프론트엔드 시뮬레이션 추가**: 17개 페이지가 호출하는 모든 API endpoint를 목록화 → 63개 대비 교차 검증. 누락 발견 시 Day 5 내 추가 생성
+2. **API 호출 매핑 문서**: Day 4 완료 시 `v3-page-api-mapping.md` 작성 — 각 페이지가 어떤 API를 호출하는지 매핑
+3. **Day 6 라우트 추가 프로토콜**: 발견 즉시 CTO Lead 승인 → Beta가 라우트 생성 → QA가 해당 라우트만 즉시 검증 → 이후 페이지 구현 속행. Phase 경계 침범을 **공식 허용 절차**로 관리.
+4. **라우트 수 유연화**: "63개 ± 3개" 허용 범위 설정. 프론트엔드 구현 시 추가 필요한 라우트가 3개 이내면 Day 6에서 바로 추가 허용.
+
+---
+
+### PSIM-09: "Day 7 — 스토리지 마이그레이션이 Day 6 프론트엔드의 하드코딩된 경로 발견"
+
+**시나리오**: Day 7 스토리지 마이그레이션 팀이 `fs` → Supabase Storage URL 변환 중, Day 6에서 생성된 프론트엔드 컴포넌트에 로컬 파일 경로가 하드코딩되어 있음을 발견. Alpha/Beta 팀이 V2의 사진 표시 로직을 그대로 가져오면서 `src="/uploads/photos/{id}.jpg"` 패턴을 사용.
+
+| 단계 | 발생 | 위험 | 대응 |
+|------|------|------|------|
+| 1 | Day 7 스토리지 팀: `grep -r "/uploads/" app/` 실행 | **Day 6 생성 컴포넌트에서 8건 발견** | 프론트엔드 파일 수정 필요 |
+| 2 | 수정 대상: photos, products, consignments 등의 이미지 표시 부분 | **Day 7은 스토리지 팀만 운영 (4명)** | 프론트엔드 수정 역량 부족 가능 |
+| 3 | 사진 URL을 `getPublicUrl(bucket, path)` 헬퍼로 교체해야 함 | **헬퍼 함수를 새로 만들어야 할 수도 있음** | lib/ 수정 필요 (Phase 4 이후 추가) |
+| 4 | 수정 범위가 예상보다 넓어 Day 7 내 완료 불가 | **Day 8(검증+빌드)에도 프론트엔드 수정 작업 잔존** | 검증 단계가 "수정+검증"으로 변질 |
+
+**판정**: 🔴 **HIGH RISK**
+- Phase 6(프론트엔드)과 Phase 7(스토리지)이 **양방향 의존**: 프론트엔드가 사진 URL을 사용하는데, URL 체계가 Phase 7에서 바뀜
+- Day 6 팀이 "V3에서 사진 URL이 바뀔 예정"임을 모르고 V2 패턴을 그대로 사용할 위험 높음
+- 순차 실행에서도 발생할 수 있지만, 병렬에서는 피드백 루프가 더 느림
+
+**대응책**:
+1. **Day 6 진입 시 사진 URL 규칙 브리핑**: "모든 이미지 src는 `getPhotoUrl(id)` 헬퍼 사용. 직접 경로 하드코딩 금지." → 헬퍼를 Day 4에서 미리 생성 (lib/utils/photo-url.ts)
+2. **Phase 1에서 사진 URL 헬퍼 포함**: `lib/utils/photo-url.ts` — V2 로컬 경로와 V3 Storage URL을 모두 지원하는 유틸. Phase 7 전까지는 V2 경로 반환, Phase 7 후 Storage URL 반환 (환경변수 기반 스위칭)
+3. **Day 7 시작 시 전수 검사**: `grep -r '"/uploads\|/photos\|src=.*\.(jpg\|png\|webp)' app/` → 0건 확인 후 마이그레이션 시작. 발견 시 Day 7 초반에 일괄 수정.
+4. **검증 게이트 추가**: Phase 6 게이트에 `grep -r "src=.*uploads" app/ → 0건` 항목 추가
+
+---
+
+### PSIM-10: "Day 8 — next build에서 3팀 코드의 타입 불일치로 빌드 실패"
+
+**시나리오**: Day 8 최종 빌드 시 `next build`를 실행하면, Day 5에서 3팀이 독립적으로 작성한 63개 라우트 코드에서 미세한 타입 불일치가 발견됨. 각 팀이 `ok()` 응답 함수에 전달하는 타입이 서로 다른 형태.
+
+| 단계 | 발생 | 위험 | 대응 |
+|------|------|------|------|
+| 1 | `next build` 실행 → tsc strict 모드에서 에러 12건 | **Day 5에서 각 팀이 자체 tsc 통과만 확인** | 통합 빌드에서만 발견되는 에러 |
+| 2 | Alpha: `ok({ settlements: data })` — 타입: `{ settlements: Settlement[] }` | 정상 | — |
+| 3 | Beta: `ok({ data: photos, total: count })` — 타입: `{ data: Photo[], total: number }` | **응답 형태 불일치** | 프론트엔드에서 `res.data.settlements` vs `res.data.data` 혼란 |
+| 4 | Gamma: `ok(products)` — 배열을 직접 전달 | **wrapper 없이 배열 반환** | ok()의 제네릭 타입 추론 문제 가능 |
+| 5 | 12건 에러 수정에 2시간 소요 | **Day 8이 검증+빌드인데 수정 작업 포함** | Day 8 일정 압박 |
+
+**판정**: ⚠️ **MEDIUM RISK**
+- Day 5에서 각 팀이 `tsc --noEmit`을 자체 worktree에서만 실행 → 통합 시 타입 충돌
+- 특히 `ok()` 제네릭 응답의 래핑 방식 차이는 ESLint로 탐지 불가
+- Day 8에서 수정 → 검증 → 재빌드 루프가 발생하면 일정 초과
+
+**대응책**:
+1. **Cross-team QA에 통합 빌드 포함**: Day 5 Cross-QA에서 `tsc --strict --noEmit` **통합 빌드** 실행 필수 (자체 worktree가 아닌 merge 후 전체에서)
+2. **응답 래핑 컨벤션 명시**: `v3-route-convention.md`에 "ok()에 전달하는 데이터는 반드시 `{ [리소스명복수]: T[], total?: number }` 형태" 명시
+3. **Day 4 마지막에 모범 라우트에 응답 타입까지 포함**: `ok({ sellers: data, total: count })` 패턴을 명확히 보여주기
+4. **Day 8 버퍼 활용**: tsc 에러 12건 정도는 2시간 내 수정 가능 → Day 9 버퍼를 Day 8로 앞당겨 사용 가능
+
+---
+
+## 19. 시뮬레이션 종합 판정 및 보강 대책 (10회 기반)
+
+### 위험도 매트릭스
+
+| # | 시나리오 | Day | 위험도 | 영향 범위 | 발생 확률 | 대응 존재 |
+|---|---------|-----|--------|----------|----------|----------|
+| PSIM-01 | lib/ 서비스 버그 발견 | Day 5 | 🔴 HIGH | 3팀 전부 중단 | 중간 | △ 부분적 |
+| PSIM-02 | 비즈니스 로직 하드코딩 | Day 5 | ⚠️ MEDIUM | 2팀 불일치 | 중간 | ✅ 대응 가능 |
+| PSIM-03 | 코드 패턴 불일치 (3팀 스타일) | Day 5 | ⚠️ MEDIUM | 63개 라우트 | 높음 | ✅ 대응 가능 |
+| PSIM-04 | DB 커넥션 풀 소진 | Day 5 | ⚠️ MEDIUM | 테스트 위양성 | 중간 | ✅ 대응 가능 |
+| PSIM-05 | 공용 스키마 추가 요청 | Day 5 | ⬇️ LOW | 1명 유휴 | 높음 | ✅ 대응 가능 |
+| PSIM-06 | Gamma 조기 완료 → 성급한 merge | Day 5 | ⚠️ MEDIUM | 2팀 교란 | 높음 | ✅ 대응 가능 |
+| PSIM-07 | 공유 컴포넌트 지연 → Beta 대기 | Day 6 | 🔴 HIGH | Day 6 전체 지연 | 높음 | △ 부분적 |
+| PSIM-08 | 프론트엔드가 누락 API 발견 | Day 6 | ⚠️ MEDIUM | Phase 경계 침범 | 중간 | ✅ 대응 가능 |
+| PSIM-09 | 스토리지 마이그레이션 vs 하드코딩 경로 | Day 7 | 🔴 HIGH | 8+ 파일 수정 | 높음 | △ 부분적 |
+| PSIM-10 | 통합 빌드 타입 불일치 | Day 8 | ⚠️ MEDIUM | 빌드 실패 | 중간 | ✅ 대응 가능 |
+
+### 위험도별 분류
+
+| 위험도 | 건수 | 시나리오 |
+|--------|------|---------|
+| 🔴 HIGH | **3건** | PSIM-01 (lib/ 버그), PSIM-07 (컴포넌트 병목), PSIM-09 (사진 URL 하드코딩) |
+| ⚠️ MEDIUM | **6건** | PSIM-02, 03, 04, 06, 08, 10 |
+| ⬇️ LOW | **1건** | PSIM-05 |
+
+### 시뮬레이션에서 도출된 필수 보강 사항 10건
+
+| # | 보강 사항 | 적용 시점 | 위험 대상 | 우선순위 |
+|---|----------|----------|----------|---------|
+| **FIX-P01** | Day 4 완료 시 **서비스 API 시그니처 프리징** + 호출 규약 테스트 | Day 4 | PSIM-01 | 🔴 필수 |
+| **FIX-P02** | Day 4 마지막에 **모범 라우트 1개 + `v3-route-convention.md`** 배포 | Day 4→5 | PSIM-03, 10 | 🔴 필수 |
+| **FIX-P03** | Day 5 진입 시 **상태 전환 하드코딩 금지 + 서비스 위임** 브리핑 | Day 5 | PSIM-02 | ⚠️ 권장 |
+| **FIX-P04** | Day 5 QA는 **순차 실행** (3팀 구현은 병렬, QA만 순차) + PgBouncer | Day 5 | PSIM-04 | ⚠️ 권장 |
+| **FIX-P05** | Day 5 **merge 금지 규칙**: Cross-QA 완료 전 main merge 금지 | Day 5 | PSIM-06 | 🔴 필수 |
+| **FIX-P06** | Day 5 Cross-QA에 **통합 빌드(tsc) + 일관성 검증 + API 매핑 교차 검증** | Day 5 | PSIM-03, 08, 10 | 🔴 필수 |
+| **FIX-P07** | Day 6 진입 시 **공유 컴포넌트 스텁 전략** (인터페이스 선정의 + 스텁 선배포) | Day 5→6 | PSIM-07 | 🔴 필수 |
+| **FIX-P08** | Phase 1에서 **사진 URL 헬퍼** `lib/utils/photo-url.ts` 미리 생성 | Day 2 | PSIM-09 | 🔴 필수 |
+| **FIX-P09** | **lib/ 핫픽스 프로토콜**: CTO Lead 단독 수정 → 3팀 pull → 재빌드 | 상시 | PSIM-01, 05 | 🔴 필수 |
+| **FIX-P10** | Day 6 게이트에 **사진 경로 하드코딩 0건 검증** 추가 | Day 6 | PSIM-09 | ⚠️ 권장 |
+
+### 🔴 HIGH RISK 3건 특별 대응
+
+#### PSIM-01 대응: lib/ 서비스 버그 — 시그니처 프리징 + 핫픽스 프로토콜
+
+```
+Day 4 완료 시:
+  1. 모든 서비스의 export 함수 시그니처를 v3-api-contract.md로 문서화
+  2. 각 서비스 함수에 대해 호출 규약 테스트 1개씩 작성 (인자 타입 + 반환 타입)
+  3. vitest 통과 필수
+
+Day 5 발생 시 (핫픽스 프로토콜):
+  1. 발견한 팀 → CTO Lead에게 즉시 메시지 (작업 중단)
+  2. CTO Lead → 영향 받는 팀 식별 (grep으로 import 추적)
+  3. CTO Lead → lib/ 수정을 main 브랜치에서 단독 수행
+  4. CTO Lead → 3팀에 "git pull origin main" 지시
+  5. 각 팀 → pull 후 tsc 재확인 → 작업 속행
+  6. 소요 시간: 30분~1시간 (Day 5 일정 내 흡수 가능)
+```
+
+#### PSIM-07 대응: 공유 컴포넌트 병목 — 스텁 전략
+
+```
+Day 5 저녁 (Cross-QA 완료 후):
+  CTO Lead → 8개 컴포넌트 props 인터페이스 정의 (components/types.ts)
+
+Day 6 시작 (T+0):
+  Alpha 공유 UI 에이전트 → 8개 스텁 컴포넌트 생성 (30분)
+    - 각 컴포넌트: props 타입 + return <div>TODO</div>
+    - tsc 빌드 통과하는 수준의 최소 구현
+
+Day 6 T+30분:
+  Beta 팀 시작 가능 (스텁 import로 페이지 골격 구현)
+  Alpha 공유 UI 에이전트 → 실제 구현으로 교체 (병렬)
+
+Day 6 T+4시간:
+  Alpha 공유 컴포넌트 실제 구현 완료
+  Beta 페이지들이 이미 스텁 기반으로 동작 → 실제 컴포넌트로 자동 교체 (import 경로 동일)
+
+결과: Beta 대기 시간 = 30분 (3시간 → 30분으로 단축)
+```
+
+#### PSIM-09 대응: 사진 URL 하드코딩 — Phase 1 선제 조치
+
+```
+Day 2 (Phase 1):
+  lib/utils/photo-url.ts 생성:
+    export function getPhotoUrl(productId: string, fileName: string): string {
+      const useStorage = process.env.PHOTO_STORAGE === 'supabase'
+      if (useStorage) {
+        return supabase.storage.from('photos').getPublicUrl(`${productId}/${fileName}`).data.publicUrl
+      }
+      return `/uploads/photos/${productId}/${fileName}`  // V2 호환
+    }
+  → Phase 7 전까지 V2 경로 반환, Phase 7 후 환경변수 전환으로 Storage URL 반환
+
+Day 6 (Phase 6):
+  모든 프론트엔드 이미지 표시에 getPhotoUrl() 사용 강제
+  게이트 추가: grep -r 'src=.*uploads\|src=.*photos.*\.(jpg\|png)' app/ → 0건
+
+Day 7 (Phase 7):
+  환경변수 PHOTO_STORAGE=supabase 설정만으로 URL 자동 전환
+  → 프론트엔드 파일 수정 0건 (이미 헬퍼 사용 중)
+```
+
+### 보강 사항의 Phase별 적용 맵
+
+| Day | 적용할 보강 | 대상 시뮬레이션 |
+|-----|-----------|---------------|
+| **Day 2** | FIX-P08: photo-url.ts 헬퍼 생성 | PSIM-09 |
+| **Day 4** | FIX-P01: 시그니처 프리징 | PSIM-01 |
+| **Day 4→5** | FIX-P02: 모범 라우트 + 컨벤션 문서 | PSIM-03, 10 |
+| **Day 5 진입** | FIX-P03: 하드코딩 금지 브리핑 | PSIM-02 |
+| **Day 5** | FIX-P04: QA 순차 실행 | PSIM-04 |
+| **Day 5** | FIX-P05: merge 금지 규칙 | PSIM-06 |
+| **Day 5 QA** | FIX-P06: 통합 빌드 + 일관성 + API 매핑 | PSIM-03, 08, 10 |
+| **Day 5→6** | FIX-P07: 스텁 컴포넌트 전략 | PSIM-07 |
+| **Day 6 QA** | FIX-P10: 사진 경로 0건 검증 | PSIM-09 |
+| **상시** | FIX-P09: lib/ 핫픽스 프로토콜 | PSIM-01, 05 |
+
+### 최종 판정
+
+**병렬 전략 유지 가능성**: ✅ **유지 가능** (보강 10건 중 필수 7건 적용 조건)
+
+**보강 적용 전후 위험도 변화**:
+
+| # | 시나리오 | 보강 전 | 보강 후 | 변화 |
+|---|---------|--------|--------|------|
+| PSIM-01 | lib/ 서비스 버그 | 🔴 HIGH | ⚠️ MEDIUM | 시그니처 프리징으로 발생 확률 ↓ |
+| PSIM-02 | 비즈니스 로직 하드코딩 | ⚠️ MEDIUM | ⬇️ LOW | 브리핑 + Cross-QA 탐지 |
+| PSIM-03 | 코드 패턴 불일치 | ⚠️ MEDIUM | ⬇️ LOW | 컨벤션 문서 + 모범 라우트 |
+| PSIM-04 | DB 커넥션 풀 소진 | ⚠️ MEDIUM | ⬇️ LOW | QA 순차 + PgBouncer |
+| PSIM-05 | 공용 스키마 추가 | ⬇️ LOW | ⬇️ LOW | 변화 없음 (이미 대응됨) |
+| PSIM-06 | Gamma 조기 완료 merge | ⚠️ MEDIUM | ⬇️ LOW | merge 금지 규칙 |
+| PSIM-07 | 공유 컴포넌트 지연 | 🔴 HIGH | ⚠️ MEDIUM | 스텁 전략 (3시간→30분) |
+| PSIM-08 | 누락 API 발견 | ⚠️ MEDIUM | ⬇️ LOW | API 매핑 교차 검증 |
+| PSIM-09 | 사진 URL 하드코딩 | 🔴 HIGH | ⬇️ LOW | photo-url.ts 헬퍼 선제 생성 |
+| PSIM-10 | 통합 빌드 타입 불일치 | ⚠️ MEDIUM | ⬇️ LOW | Cross-QA 통합 빌드 |
+
+**보강 후 잔존 위험**:
+- 🔴 HIGH: **0건** (3건 → 0건)
+- ⚠️ MEDIUM: **2건** (PSIM-01 ↓, PSIM-07 ↓)
+- ⬇️ LOW: **8건**
+
+**일정 달성 확률**:
+- 보강 미적용: **60%** (9일 → 11~12일로 퇴화 예상)
+- 보강 적용(10건 전부): **90%** (Day 9 버퍼가 10% 잔존 리스크 흡수)
+- 보강 적용(필수 7건만): **85%** (권장 3건 미적용 시 소폭 하락)
+
+---
+
+*이 플랜의 모든 코드는 존재 이유가 있다. 의미 없는 줄은 없다.*
+*Rev.2의 30건 정정 + audit2의 18건 수정 + pa1의 13건 개선 + aud1-1의 4건 해소 = 총 65건 반영.*
+*16회 적대적 시뮬레이션: PASS 14건, PARTIAL 2건, FAIL 0건.*
+*10회 병렬 팀 운영 시뮬레이션: HIGH 3건 → 보강 후 0건, 보강 사항 10건 도출.*
+*10회 실패 근본 원인 분석 → 같은 패턴 반복 방지.*
+*10회 개선 방향 탐색 → 각 결정의 트레이드오프 명시.*
+*Phase 간 병렬 전략: Day 5 (3팀 동시, 63 라우트) + Day 6 (2팀 동시, 17 페이지).*
+*보강 10건 적용 시 일정 달성 확률 90%. 잔존 HIGH 리스크 0건.*
+*총 64명·일 투입. 피크: Day 5 (18명 동시).*
+*9일 일정 (8일 작업 + 1일 버퍼). 순차 대비 31% 단축.*
+*구현 시작 전 사용자 승인 필수.*

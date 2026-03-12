@@ -1,6 +1,6 @@
 -- ============================================================
 -- Tokyo DDL: 04_functions.sql
--- Total: 10 functions
+-- Total: 13 functions
 -- Generated: 2026-03-05
 -- ============================================================
 
@@ -398,3 +398,127 @@ RETURNS text
 AS $function$
   SELECT encode(pgp_sym_encrypt(plain_text, encryption_key), 'base64');
 $function$;
+
+-- ============================================================
+-- Function: increment_batch_completed
+-- Source: V3 batch processing
+-- Atomically increments completed count for a batch
+-- ============================================================
+CREATE OR REPLACE FUNCTION increment_batch_completed(p_batch_id TEXT)
+RETURNS void
+  LANGUAGE plpgsql
+AS $function$
+DECLARE
+  v_row_count INT;
+BEGIN
+  IF p_batch_id IS NULL OR p_batch_id = '' THEN
+    RAISE EXCEPTION '배치 ID가 유효하지 않습니다';
+  END IF;
+
+  UPDATE _batch_progress
+    SET completed = completed + 1,
+        updated_at = now()
+    WHERE batch_id = p_batch_id;
+
+  GET DIAGNOSTICS v_row_count = ROW_COUNT;
+
+  IF v_row_count = 0 THEN
+    RAISE EXCEPTION '배치를 찾을 수 없습니다: %', p_batch_id;
+  END IF;
+END;
+$function$;
+
+GRANT EXECUTE ON FUNCTION increment_batch_completed(TEXT) TO service_role;
+
+-- ============================================================
+-- Function: increment_batch_failed
+-- Source: V3 batch processing
+-- Atomically increments failed count and appends failed_id
+-- ============================================================
+CREATE OR REPLACE FUNCTION increment_batch_failed(p_batch_id TEXT, p_failed_id TEXT)
+RETURNS void
+  LANGUAGE plpgsql
+AS $function$
+DECLARE
+  v_row_count INT;
+BEGIN
+  IF p_batch_id IS NULL OR p_batch_id = '' THEN
+    RAISE EXCEPTION '배치 ID가 유효하지 않습니다';
+  END IF;
+
+  UPDATE _batch_progress
+    SET failed = failed + 1,
+        failed_ids = failed_ids || jsonb_build_array(p_failed_id),
+        updated_at = now()
+    WHERE batch_id = p_batch_id;
+
+  GET DIAGNOSTICS v_row_count = ROW_COUNT;
+
+  IF v_row_count = 0 THEN
+    RAISE EXCEPTION '배치를 찾을 수 없습니다: %', p_batch_id;
+  END IF;
+END;
+$function$;
+
+GRANT EXECUTE ON FUNCTION increment_batch_failed(TEXT, TEXT) TO service_role;
+
+-- ============================================================
+-- Function: check_consignment_duplicates
+-- Source: V3 bulk consignment processing
+-- Exact (seller_id, product_name) pair matching via JSONB input
+-- ============================================================
+CREATE OR REPLACE FUNCTION check_consignment_duplicates(p_pairs jsonb)
+RETURNS TABLE(seller_id uuid, product_name text)
+  LANGUAGE plpgsql
+  STABLE
+AS $function$
+BEGIN
+  RETURN QUERY
+  SELECT DISTINCT cr.seller_id, cr.product_name
+  FROM consignment_requests cr
+  WHERE (cr.seller_id, cr.product_name) IN (
+    SELECT (p->>'seller_id')::uuid, p->>'product_name'
+    FROM jsonb_array_elements(p_pairs) AS p
+  );
+END;
+$function$;
+
+GRANT EXECUTE ON FUNCTION check_consignment_duplicates(jsonb) TO service_role;
+
+-- ============================================================
+-- Function: fail_settlement
+-- Source: V3 migration 020 (20260304000020_rpc_fail_settlement.sql)
+-- Phase 4 §1.9: 정산 실패 처리 (원자적 상태 전이 + 사유 기록 + sold_items 복원)
+-- ============================================================
+CREATE OR REPLACE FUNCTION fail_settlement(
+  p_id UUID,
+  p_reason TEXT,
+  p_expected_status TEXT
+) RETURNS SETOF settlements AS $$
+BEGIN
+  IF p_expected_status NOT IN ('draft', 'confirmed') THEN
+    RAISE EXCEPTION '실패 처리 불가: % 상태에서는 failed로 전이할 수 없습니다', p_expected_status;
+  END IF;
+
+  RETURN QUERY
+    UPDATE settlements
+    SET status = 'failed',
+        fail_reason = p_reason
+    WHERE id = p_id
+      AND status = p_expected_status
+    RETURNING *;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION '실패 처리 불가: ID % (expected: %)', p_id, p_expected_status;
+  END IF;
+
+  -- sold_items를 pending으로 복원 (재정산 가능하도록)
+  UPDATE sold_items
+    SET settlement_status = 'pending'
+    WHERE id IN (
+      SELECT sold_item_id FROM settlement_items WHERE settlement_id = p_id
+    );
+END;
+$$ LANGUAGE plpgsql;
+
+GRANT EXECUTE ON FUNCTION fail_settlement(UUID, TEXT, TEXT) TO service_role;

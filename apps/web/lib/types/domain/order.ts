@@ -23,6 +23,20 @@ export const CONDITION_LABELS: Record<string, string> = {
   B: 'B급',
 } as const
 
+// V2 워크플로우 기반 주문 상태 전이
+export const ORDER_TRANSITIONS: Record<OrderStatus, readonly OrderStatus[]> = {
+  APPLIED:         ['SHIPPING', 'CANCELLED'],
+  SHIPPING:        ['COLLECTED', 'CANCELLED'],
+  COLLECTED:       ['INSPECTED', 'CANCELLED'],
+  INSPECTED:       ['PRICE_ADJUSTING', 'IMAGE_PREPARING', 'CANCELLED'],
+  PRICE_ADJUSTING: ['RE_INSPECTED', 'CANCELLED'],
+  RE_INSPECTED:    ['IMAGE_PREPARING', 'CANCELLED'],
+  IMAGE_PREPARING: ['IMAGE_COMPLETE', 'CANCELLED'],
+  IMAGE_COMPLETE:  ['CONFIRMED', 'CANCELLED'],
+  CONFIRMED:       [],
+  CANCELLED:       [],
+} as const
+
 export interface Order {
   id: string
   orderNumber: string

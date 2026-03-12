@@ -257,3 +257,26 @@ FAIL
 	•	동일 Phase 내 Architecture Violation이 2회 이상 발생하면
 해당 Phase는 자동 재오픈 대상이 된다.
 	•	재오픈 시 원인 분류 기록이 없으면 PASS 불가.
+
+⸻
+
+부록 A. 승인된 아키텍처 예외
+
+A.1 settlement.repo → sold-items.repo cross-table import (2026-03-10 승인)
+
+배경: settlement.repo.ts에서 PostgREST depth 2 FK JOIN (settlements → settlement_items → sold_items) 시
+sold_items 20컬럼 매핑이 필요. sold-items.repo.ts에 이미 COLUMNS와 mapRow가 export됨.
+
+정당화 (§11조 요건 충족):
+- 기존 구조 불가 이유: 인라인 매핑(Option B)은 NUMERIC 타입 변경 시 silent bug 위험 (시뮬레이션 Sim3 CRITICAL)
+- 대안 비교: 5개 옵션 + 10회 시뮬레이션 완료 (docs/03-analysis/settlement-repo-fix.md §2 참조)
+  - Option A (cross-table import): 채택 — NUMERIC 안전, DRY 준수
+  - Option B (인라인 매핑): 기각 — Sim3 CRITICAL
+  - Option B+ (인라인 + toSafeNumber): 기각 — 완화만 됨
+  - Option C (공유 매퍼): 기각 — sellers JOIN 필드가 repo별 상이
+  - Option D (toCamelCase): 기각 — NUMERIC 미지원
+- 영향 범위: settlement.repo.ts 1개 파일만. 다른 repo 확장 불가.
+
+분류: Structure Smell (§12조) — Architecture Violation 아님.
+근거: §2.2는 레이어 간 역참조와 순환 참조를 금지. repo→repo 수평 import는 금지 조항 없음.
+이 예외는 프로젝트에서 유일하며, 동일 패턴의 추가 예외 생성 시 별도 정당화 필수.

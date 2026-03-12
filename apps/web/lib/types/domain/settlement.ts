@@ -34,6 +34,7 @@ export interface Settlement {
   transferReference?: string | null
   createdAt?: string | null
   confirmedAt?: string | null
+  failReason?: string | null
 }
 
 // V2 settlement_items: 순수 join 테이블 (3컬럼)
@@ -113,4 +114,52 @@ export interface NaverSettlement {
   matchStatus?: MatchStatus | null
   uploadBatch?: string | null
   createdAt?: string | null
+}
+
+// 정산 상태 전이 (§1.4 — 서비스 1차 검증 + repo 2차 optimistic lock)
+export const SETTLEMENT_TRANSITIONS: Record<SettlementStatus, readonly SettlementStatus[]> = {
+  draft:     ['confirmed', 'failed'],
+  confirmed: ['paid', 'failed'],
+  paid:      [],
+  failed:    [],
+} as const
+
+// V2 settlement_matches 8컬럼
+export interface SettlementMatch {
+  id: string
+  salesRecordId?: string | null
+  naverSettlementId?: string | null
+  matchType: string
+  matchScore?: number | null
+  matchReason?: string | null
+  matchedBy?: string | null
+  matchedAt?: string | null
+}
+
+// V2 settlement_queue 14컬럼
+export interface SettlementQueueItem {
+  id: string
+  matchId?: string | null
+  sellerId?: string | null
+  sellerName: string
+  productName?: string | null
+  productNumber?: string | null
+  saleAmount?: number | null
+  commissionRate?: number | null
+  commissionAmount?: number | null
+  payoutAmount?: number | null
+  settleBaseDate?: string | null
+  queueStatus?: string | null
+  settlementId?: string | null
+  createdAt?: string | null
+}
+
+// 셀러별 정산 큐 집계 (getSellerSummary용)
+export interface SellerSettlementSummary {
+  sellerId: string
+  sellerName: string
+  totalItems: number
+  totalSaleAmount: number
+  totalCommission: number
+  totalPayout: number
 }

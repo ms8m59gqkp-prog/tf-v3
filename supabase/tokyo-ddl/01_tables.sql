@@ -506,6 +506,7 @@ CREATE TABLE settlements (
   transfer_reference TEXT,
   created_at TIMESTAMPTZ DEFAULT now(),
   confirmed_at TIMESTAMPTZ,
+  fail_reason TEXT,
   PRIMARY KEY (id)
 );
 

@@ -14,15 +14,15 @@ export type ConsignmentSource = (typeof CONSIGNMENT_SOURCES)[number]
 export const SELLER_RESPONSES = ['accepted', 'counter', 'cancelled'] as const satisfies readonly string[]
 export type SellerResponse = (typeof SELLER_RESPONSES)[number]
 
-// V2 워크플로우 기반 상태 전이 (옵션 C)
+// V2 워크플로우 기반 상태 전이 (결정 D-1: 검수→승인→수령→완료)
 export const ALLOWED_TRANSITIONS: Record<ConsignmentStatus, readonly ConsignmentStatus[]> = {
-  pending: ['received', 'rejected'],
-  received: ['inspecting'],
+  pending:    ['inspecting', 'approved', 'on_hold', 'rejected'],
   inspecting: ['approved', 'on_hold', 'rejected'],
-  on_hold: ['inspecting', 'rejected'],
-  approved: ['completed'],
-  rejected: [],
-  completed: [],
+  on_hold:    ['inspecting', 'approved', 'rejected'],
+  approved:   ['received', 'on_hold', 'rejected'],
+  received:   ['completed', 'on_hold', 'rejected'],
+  completed:  [],
+  rejected:   [],
 } as const
 
 export interface ConsignmentRequest {
