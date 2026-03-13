@@ -43,3 +43,7 @@ export const NAVER_CLIENT_SECRET = getOptionalEnvVar('NAVER_CLIENT_SECRET')
 // 헬스체크 토큰 — 선택: 미설정 시 상세 체크 비활성
 export const HEALTHCHECK_TOKEN = getOptionalEnvVar('HEALTHCHECK_TOKEN')
 
+// Storage — 선택: 미설정 시 legacy 모드 (로컬 /uploads/)
+export const PHOTO_STORAGE_MODE = getOptionalEnvVar('NEXT_PUBLIC_PHOTO_STORAGE_MODE') ?? 'legacy'
+export const PHOTO_BASE_URL = getOptionalEnvVar('NEXT_PUBLIC_PHOTO_BASE_URL') ?? ''
+

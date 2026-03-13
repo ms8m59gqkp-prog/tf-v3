@@ -9,6 +9,7 @@
 import { Image as ImageIcon } from 'lucide-react'
 import clsx from 'clsx'
 import type { PhotoUpload } from '@/lib/types/domain/photo'
+import { resolveStorageUrl } from '@/lib/utils/path'
 
 interface Props {
   photos: PhotoUpload[]
@@ -42,7 +43,7 @@ export default function PhotoGrid({ photos, selectedIds, onToggle }: Props) {
                 {photo.fileUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={photo.fileUrl}
+                    src={resolveStorageUrl(photo.fileUrl)}
                     alt={photo.fileName}
                     className="h-full w-full object-contain"
                   />

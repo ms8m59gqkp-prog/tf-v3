@@ -7,6 +7,7 @@
 import * as productsRepo from '../db/repositories/products.repo'
 import type { StProduct } from '../types/domain/product'
 import { AppError } from '../errors'
+import { resolveStorageUrl } from '../utils/path'
 
 export interface NaverExportRow {
   상품명: string
@@ -63,11 +64,14 @@ function buildDescription(product: StProduct): string {
 
 function getMainImage(product: StProduct): string {
   if (product.photos && product.photos.length > 0) {
-    const first = product.photos[0] as string | { url?: string }
-    if (typeof first === 'string') return first
-    if (first && typeof first === 'object' && 'url' in first) return first.url ?? ''
+    const first: unknown = product.photos[0]
+    if (typeof first === 'string') return resolveStorageUrl(first)
+    if (first !== null && typeof first === 'object' && 'url' in first) {
+      const { url } = first as { url?: string }
+      return resolveStorageUrl(url ?? '')
+    }
   }
-  return product.referenceImage ?? ''
+  return resolveStorageUrl(product.referenceImage ?? '')
 }
 
 function toExportRow(product: StProduct): NaverExportRow {
