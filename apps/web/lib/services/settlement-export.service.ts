@@ -22,6 +22,10 @@ export async function exportToExcel(settlementId: string): Promise<ExportResult>
   }
 
   const settlement = result.data
+  if (!settlement.settlement_items || settlement.settlement_items.length === 0) {
+    throw new AppError('VALIDATION', `정산 ID ${settlementId}에 정산 항목이 없습니다`)
+  }
+
   const sellerName = settlement.sellers?.name ?? '알수없음'
 
   // Sheet1: 건별 상세
@@ -30,10 +34,10 @@ export async function exportToExcel(settlementId: string): Promise<ExportResult>
     '상품번호': item.sold_items.productNumber ?? '',
     '판매가': item.sold_items.salePrice,
     '수량': item.sold_items.quantity,
-    '수수료율(%)': settlement.commissionRate,
-    '수수료': Math.round(item.sold_items.salePrice * settlement.commissionRate / 100),
+    '수수료율(%)': Math.round(settlement.commissionRate * 100),
+    '수수료': Math.round(item.sold_items.salePrice * settlement.commissionRate),
     '지급액': item.sold_items.salePrice - Math.round(
-      item.sold_items.salePrice * settlement.commissionRate / 100,
+      item.sold_items.salePrice * settlement.commissionRate,
     ),
   }))
   const detailSheet = XLSX.utils.json_to_sheet(detailRows)

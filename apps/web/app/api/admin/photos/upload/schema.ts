@@ -24,6 +24,10 @@ export const PhotoUploadSchema = z.object({
         },
         '내부 네트워크 URL은 허용되지 않습니다',
       ),
-    fileSize: z.number().int().positive('파일 크기는 양수여야 합니다'),
+    fileSize: z.number().int().positive('파일 크기는 양수여야 합니다')
+      .max(50 * 1024 * 1024, '개별 파일은 50MB를 초과할 수 없습니다'),
   })).min(1, '최소 1개 파일이 필요합니다').max(50, '최대 50개까지 업로드 가능합니다'),
-})
+}).refine(
+  (data) => data.files.reduce((sum, f) => sum + f.fileSize, 0) <= 500 * 1024 * 1024,
+  '전체 파일 합계는 500MB를 초과할 수 없습니다',
+)

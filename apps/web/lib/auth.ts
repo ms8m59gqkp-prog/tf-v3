@@ -9,7 +9,7 @@ import { ADMIN_PASSWORD_HASH } from './env'
 import crypto from 'crypto'
 
 const BCRYPT_COST = 12
-const SESSION_TTL = 24 * 60 * 60 * 1000 // 24시간
+const SESSION_TTL = 8 * 60 * 60 * 1000 // 8시간
 const GC_INTERVAL = 5 * 60 * 1000 // 5분
 
 export const SESSION_COOKIE_CONFIG = {
@@ -17,7 +17,7 @@ export const SESSION_COOKIE_CONFIG = {
   secure: process.env.NODE_ENV === 'production',
   sameSite: 'strict' as const,
   path: '/',
-  maxAge: 86400,
+  maxAge: 28800, // 8시간 (SESSION_TTL과 동기화)
 }
 
 export async function verifyPassword(password: string): Promise<boolean> {
