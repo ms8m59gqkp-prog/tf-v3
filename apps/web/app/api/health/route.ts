@@ -10,11 +10,14 @@ import { HEALTHCHECK_TOKEN } from '@/lib/env'
 import { runHealthCheck } from '@/lib/services/infra-check.service'
 
 export async function GET(req: NextRequest) {
-  const result = await runHealthCheck()
+  const token = req.headers.get('x-healthcheck-token')
+  const isInternal = !!(HEALTHCHECK_TOKEN && token === HEALTHCHECK_TOKEN)
+
+  // §3.3: 토큰 유무에 따라 에러 메시지 sanitize 여부 결정
+  const result = await runHealthCheck(isInternal)
   const status = result.status === 'healthy' ? 200 : 503
 
-  const token = req.headers.get('x-healthcheck-token')
-  if (HEALTHCHECK_TOKEN && token === HEALTHCHECK_TOKEN) {
+  if (isInternal) {
     return NextResponse.json(result, { status })
   }
 

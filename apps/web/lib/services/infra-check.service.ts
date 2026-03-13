@@ -12,7 +12,16 @@ const CHECK_TIMEOUT_MS = 3_000
 interface CheckResult {
   ok: boolean
   latencyMs: number
+  /** 내부 전용 — 외부 응답에서는 sanitize 후 제거 */
   error?: string
+}
+
+/** 내부 에러 메시지에서 민감 정보(연결 문자열, 키, 스택) 제거 */
+function sanitizeError(msg: string | undefined): string | undefined {
+  if (!msg) return undefined
+  // 연결 문자열, API 키, 스택 트레이스 제거
+  if (/postgres|supabase|eyJ|at\s+\w+\s+\(/.test(msg)) return 'service unavailable'
+  return msg
 }
 
 export interface HealthResult {
@@ -58,7 +67,7 @@ async function checkSms(): Promise<CheckResult> {
   return { ok: true, latencyMs: 0 }
 }
 
-export async function runHealthCheck(): Promise<HealthResult> {
+export async function runHealthCheck(internal = false): Promise<HealthResult> {
   const [db, storage, sms] = await Promise.allSettled([
     checkDb(), checkStorage(), checkSms(),
   ])
@@ -67,6 +76,13 @@ export async function runHealthCheck(): Promise<HealthResult> {
     db: db.status === 'fulfilled' ? db.value : { ok: false, latencyMs: 0, error: db.reason?.message },
     storage: storage.status === 'fulfilled' ? storage.value : { ok: false, latencyMs: 0, error: storage.reason?.message },
     sms: sms.status === 'fulfilled' ? sms.value : { ok: false, latencyMs: 0, error: sms.reason?.message },
+  }
+
+  // §3.3: 외부 응답 시 에러 메시지 sanitize
+  if (!internal) {
+    checks.db.error = sanitizeError(checks.db.error)
+    checks.storage.error = sanitizeError(checks.storage.error)
+    checks.sms.error = sanitizeError(checks.sms.error)
   }
 
   const allOk = checks.db.ok && checks.storage.ok
