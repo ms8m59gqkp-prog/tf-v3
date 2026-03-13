@@ -10,7 +10,7 @@ import * as nsqRepo from '../db/repositories/naver-settlements-query.repo'
 import * as matchesRepo from '../db/repositories/settlement-matches.repo'
 import * as queueRepo from '../db/repositories/settlement-queue.repo'
 import * as queueSummaryRepo from '../db/repositories/settlement-queue-summary.repo'
-import type { SalesRecord, NaverSettlement, SettlementMatch, SellerSettlementSummary } from '../types/domain/settlement'
+import type { SalesRecord, NaverSettlement, SettlementMatch, SellerSettlementSummary, MatchStatus } from '../types/domain/settlement'
 import { normalizeBrand } from '../utils/brand'
 
 const MATCH_CHUNK_SIZE = 500
@@ -81,14 +81,14 @@ async function persistMatch(
   if (r.error !== null) throw new AppError('INTERNAL', `매칭 저장 실패: ${r.error}`)
   const status = matchType === 'manual' ? 'manual_matched' as const
     : (matchScore >= THRESHOLD_AUTO ? 'auto_matched' as const : 'manual_matched' as const)
-  const srRes = await srqRepo.updateMatchStatus([salesRecordId], status)
+  const srRes = await srqRepo.updateMatchStatus([salesRecordId], status, 'unmatched')
   if (srRes.error !== null) {
     await matchesRepo.deleteByIds([r.data.id])
     throw new AppError('INTERNAL', `매출장 상태 갱신 실패: ${srRes.error}`)
   }
-  const nsRes = await nsqRepo.updateMatchStatus([naverSettlementId], status)
+  const nsRes = await nsqRepo.updateMatchStatus([naverSettlementId], status, 'unmatched')
   if (nsRes.error !== null) {
-    await srqRepo.updateMatchStatus([salesRecordId], 'unmatched')
+    await srqRepo.updateMatchStatus([salesRecordId], 'unmatched', status)
     await matchesRepo.deleteByIds([r.data.id])
     throw new AppError('INTERNAL', `네이버 정산 상태 갱신 실패: ${nsRes.error}`)
   }
@@ -112,13 +112,11 @@ export async function autoMatch(): Promise<AutoMatchResult> {
   }
   return { matched, needsReview, unmatched: sRes.data.length - matched - needsReview, details }
 }
-
 export async function manualMatch(
   salesRecordId: string, naverSettlementId: string, reason?: string,
 ): Promise<SettlementMatch> {
   return persistMatch(salesRecordId, naverSettlementId, 'manual', 1.0, reason)
 }
-
 export async function cancelMatch(matchId: string): Promise<void> {
   const fRes = await matchesRepo.findByMatchIds([matchId])
   if (fRes.error !== null) throw new AppError('NOT_FOUND', `매칭 조회 실패: ${fRes.error}`)
@@ -126,11 +124,12 @@ export async function cancelMatch(matchId: string): Promise<void> {
   if (!m) throw new AppError('NOT_FOUND', `매칭 ID ${matchId} 없음`)
   const delRes = await matchesRepo.deleteByIds([matchId])
   if (delRes.error !== null) throw new AppError('INTERNAL', `매칭 삭제 실패: ${delRes.error}`)
-  // soft-fail: 삭제 후 원본 상태 복원 실패는 로그만
-  if (m.salesRecordId) await srqRepo.updateMatchStatus([m.salesRecordId], 'unmatched')
-  if (m.naverSettlementId) await nsqRepo.updateMatchStatus([m.naverSettlementId], 'unmatched')
+  // soft-fail: 삭제 후 원본 상태 복원 실패는 로그만 (매칭 당시 설정된 상태를 expectedCurrent로 사용)
+  const prevStatus: MatchStatus = m.matchType === 'manual' ? 'manual_matched'
+    : ((m.matchScore ?? 0) >= THRESHOLD_AUTO ? 'auto_matched' : 'manual_matched')
+  if (m.salesRecordId) await srqRepo.updateMatchStatus([m.salesRecordId], 'unmatched', prevStatus)
+  if (m.naverSettlementId) await nsqRepo.updateMatchStatus([m.naverSettlementId], 'unmatched', prevStatus)
 }
-
 export interface QueueResult { queued: number; skipped: number }
 export async function queueSettlements(): Promise<QueueResult> {
   const qRes = await queueRepo.listByStatus('pending')
@@ -139,7 +138,6 @@ export async function queueSettlements(): Promise<QueueResult> {
   // TODO: Phase 5에서 매칭 전체 조회 repo 확장 후 큐 등록 로직 구현
   return { queued: 0, skipped: existing.size }
 }
-
 export async function getQueueSummary(): Promise<SellerSettlementSummary[]> {
   const r = await queueSummaryRepo.getSellerSummary()
   if (r.error !== null) throw new AppError('INTERNAL', `큐 집계 조회 실패: ${r.error}`)

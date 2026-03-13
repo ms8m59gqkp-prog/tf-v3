@@ -10,10 +10,7 @@ import type { Seller } from '../../types/domain/seller'
 import type { DbResult, DbListResult, PageOptions } from '../types'
 import { COLUMNS as SOLD_ITEM_COLUMNS, mapRow as mapSoldItemRow } from './sold-items.repo'
 
-const SETTLEMENT_COLUMNS = `id, seller_id, settlement_period_start, settlement_period_end,
-  total_sales, commission_rate, commission_amount, return_deduction,
-  settlement_amount, item_count, status, paid_at, paid_by,
-  transfer_reference, created_at, confirmed_at, fail_reason` as const
+const SETTLEMENT_COLUMNS = `id, seller_id, settlement_period_start, settlement_period_end, total_sales, commission_rate, commission_amount, return_deduction, settlement_amount, item_count, status, paid_at, paid_by, transfer_reference, created_at, confirmed_at, fail_reason` as const
 
 export type SettlementWithSeller = Settlement & {
   sellers: Pick<Seller, 'id' | 'name' | 'nickname' | 'phone' | 'bankAccount' |
@@ -49,7 +46,6 @@ function mapRow(row: Record<string, unknown>): Settlement {
     failReason: (row.fail_reason as string) ?? null,
   }
 }
-
 export { mapRow, SETTLEMENT_COLUMNS }
 
 function mapSellerJoin(raw: Record<string, unknown>): SettlementWithSeller['sellers'] {
@@ -76,8 +72,7 @@ export async function findById(id: string): Promise<DbResult<SettlementWithDetai
     .select(`${SETTLEMENT_COLUMNS}, ${SELLER_JOIN}, ${ITEMS_JOIN}`)
     .eq('id', id).single()
   if (error) return { data: null, error: error.message }
-  const row = data as unknown as Record<string, unknown>
-  const rawItems = (row.settlement_items as Record<string, unknown>[]) ?? []
+  const row = data as unknown as Record<string, unknown>; const rawItems = (row.settlement_items as Record<string, unknown>[]) ?? []
   return {
     data: {
       ...mapRow(row),
@@ -92,12 +87,7 @@ export async function findById(id: string): Promise<DbResult<SettlementWithDetai
   }
 }
 
-interface SettlementFilters {
-  status?: SettlementStatus
-  periodFrom?: string
-  periodTo?: string
-  sellerId?: string
-}
+interface SettlementFilters { status?: SettlementStatus; periodFrom?: string; periodTo?: string; sellerId?: string }
 
 export async function list(
   filters: SettlementFilters, options: PageOptions,

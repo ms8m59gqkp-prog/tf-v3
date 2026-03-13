@@ -51,7 +51,7 @@ export async function updateStatus(id: string, newStatus: OrderStatus): Promise<
     throw new AppError('CONFLICT', `상태 전이 불가: ${current} → ${newStatus}`)
   }
 
-  const result = await ordersMutationRepo.updateStatus(id, newStatus)
+  const result = await ordersMutationRepo.updateStatus(id, newStatus, current)
   if (result.error !== null) throw new AppError('INTERNAL', result.error)
   return result.data
 }

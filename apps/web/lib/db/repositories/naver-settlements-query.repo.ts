@@ -18,10 +18,10 @@ export async function listUnmatched(batchId?: string): Promise<DbResult<NaverSet
   return { data: (data as unknown as Record<string, unknown>[]).map(mapRow), error: null }
 }
 
-export async function updateMatchStatus(ids: string[], status: MatchStatus): Promise<DbResult<number>> {
+export async function updateMatchStatus(ids: string[], status: MatchStatus, expectedCurrent: MatchStatus): Promise<DbResult<number>> {
   const client = createAdminClient()
   const { data, error } = await client
-    .from('naver_settlements').update({ match_status: status }).in('id', ids).select('id')
+    .from('naver_settlements').update({ match_status: status }).in('id', ids).eq('match_status', expectedCurrent).select('id')
   if (error) return { data: null, error: error.message }
   return { data: (data ?? []).length, error: null }
 }

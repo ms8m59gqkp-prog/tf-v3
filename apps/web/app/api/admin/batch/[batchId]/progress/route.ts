@@ -7,8 +7,7 @@
 import type { NextRequest } from 'next/server'
 import { withAdmin } from '@/lib/api/middleware'
 import { ok, errFrom, validationErr } from '@/lib/api/response'
-// eslint-disable-next-line no-restricted-imports -- 단순 조회, 전용 서비스 불필요
-import * as batchProgressRepo from '@/lib/db/repositories/batch-progress.repo'
+import * as batchProgressService from '@/lib/services/batch-progress.service'
 
 export const GET = withAdmin(async (
   _req: NextRequest,
@@ -20,10 +19,7 @@ export const GET = withAdmin(async (
       return validationErr('batchId는 필수입니다')
     }
 
-    const result = await batchProgressRepo.getProgress(batchId)
-    if (result.error !== null) {
-      return errFrom(new Error(result.error))
-    }
-    return ok(result.data)
+    const data = await batchProgressService.getProgress(batchId)
+    return ok(data)
   } catch (e) { return errFrom(e) }
 })

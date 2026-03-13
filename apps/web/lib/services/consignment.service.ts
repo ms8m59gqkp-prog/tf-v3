@@ -9,6 +9,7 @@ import * as consignmentsRepo from '../db/repositories/consignments.repo'
 import * as consignmentsQueryRepo from '../db/repositories/consignments-query.repo'
 import * as sellersRepo from '../db/repositories/sellers.repo'
 import type { ConsignmentWithRelations } from '../db/repositories/consignments.repo'
+import { ALLOWED_TRANSITIONS } from '../types/domain/consignment'
 import type { ConsignmentRequest, ConsignmentStatus } from '../types/domain/consignment'
 import type { PageOptions } from '../db/types'
 
@@ -99,7 +100,8 @@ export async function approveConsignment(id: string): Promise<ConsignmentRequest
   if (current.error !== null) throw new AppError('NOT_FOUND', `위탁을 찾을 수 없습니다: ${id}`)
 
   const status = current.data.status
-  if (status !== 'inspecting' && status !== 'pending') {
+  const allowed = ALLOWED_TRANSITIONS[status as keyof typeof ALLOWED_TRANSITIONS]
+  if (!allowed || !allowed.includes('approved' as never)) {
     throw new AppError('CONFLICT', `승인 불가 상태입니다: ${status}`)
   }
 

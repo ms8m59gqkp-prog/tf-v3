@@ -4,7 +4,7 @@
  * HOW: DB·Storage·SMS 각각 개별 타임아웃 + Promise.allSettled 병렬 실행
  * WHERE: GET /api/health 라우트
  */
-import { createAdminClient } from '../supabase/admin'
+import * as infraRepo from '../db/repositories/infra.repo'
 import { ALIGO_API_KEY } from '../env'
 
 const CHECK_TIMEOUT_MS = 3_000
@@ -32,10 +32,8 @@ function timeoutPromise(ms: number): Promise<never> {
 async function checkDb(): Promise<CheckResult> {
   const start = Date.now()
   try {
-    const client = createAdminClient()
-    const query = client.from('sellers').select('id').limit(1)
-    const { error } = await Promise.race([query, timeoutPromise(CHECK_TIMEOUT_MS)])
-    if (error) return { ok: false, latencyMs: Date.now() - start, error: error.message }
+    const result = await Promise.race([infraRepo.ping(), timeoutPromise(CHECK_TIMEOUT_MS)])
+    if (!result.ok) return { ok: false, latencyMs: Date.now() - start, error: result.error }
     return { ok: true, latencyMs: Date.now() - start }
   } catch (e) {
     return { ok: false, latencyMs: Date.now() - start, error: e instanceof Error ? e.message : 'unknown' }
@@ -45,10 +43,8 @@ async function checkDb(): Promise<CheckResult> {
 async function checkStorage(): Promise<CheckResult> {
   const start = Date.now()
   try {
-    const client = createAdminClient()
-    const query = client.storage.listBuckets()
-    const { error } = await Promise.race([query, timeoutPromise(CHECK_TIMEOUT_MS)])
-    if (error) return { ok: false, latencyMs: Date.now() - start, error: error.message }
+    const result = await Promise.race([infraRepo.pingStorage(), timeoutPromise(CHECK_TIMEOUT_MS)])
+    if (!result.ok) return { ok: false, latencyMs: Date.now() - start, error: result.error }
     return { ok: true, latencyMs: Date.now() - start }
   } catch (e) {
     return { ok: false, latencyMs: Date.now() - start, error: e instanceof Error ? e.message : 'unknown' }

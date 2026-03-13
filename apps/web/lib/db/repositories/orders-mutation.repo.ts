@@ -11,10 +11,11 @@ import { ORDER_COLUMNS, ORDER_ITEM_COLUMNS, mapOrderRow, mapOrderItemRow } from 
 
 export async function updateStatus(
   id: string, status: (typeof ORDER_STATUSES)[number],
+  expectedCurrent: (typeof ORDER_STATUSES)[number],
 ): Promise<DbResult<Order>> {
   const client = createAdminClient()
   const { data, error } = await client
-    .from('orders').update({ status }).eq('id', id)
+    .from('orders').update({ status }).eq('id', id).eq('status', expectedCurrent)
     .select(ORDER_COLUMNS).single()
   if (error) return { data: null, error: error.message }
   return { data: mapOrderRow(data as unknown as Record<string, unknown>), error: null }

@@ -90,12 +90,13 @@ export async function upsertFromExcel(rows: Record<string, unknown>[]): Promise<
 
   return { succeeded, failed, total: rows.length }
 }
-export async function updateStatus(ids: string[], status: SoldItemStatus): Promise<DbResult<number>> {
+export async function updateStatus(ids: string[], status: SoldItemStatus, expectedCurrent: SoldItemStatus): Promise<DbResult<number>> {
   const client = createAdminClient()
   const { error, count } = await client
     .from('sold_items')
     .update({ settlement_status: status })
     .in('id', ids)
+    .eq('settlement_status', expectedCurrent)
   if (error) return { data: null, error: error.message }
   return { data: count ?? ids.length, error: null }
 }

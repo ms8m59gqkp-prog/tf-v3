@@ -34,6 +34,7 @@ export async function updateUploadResult(
     .from('excel_uploads')
     .update(result)
     .eq('id', id)
+    .eq('status', 'processing')
     .select(UPLOAD_COLUMNS)
     .single()
   if (error) return { data: null, error: error.message }

@@ -86,7 +86,6 @@ export async function generate(params: GenerateParams): Promise<GenerateResult> 
         commissionAmount: calcResult.commissionAmount,
         returnDeduction: calcResult.returnDeduction,
         settlementAmount: calcResult.settlementAmount,
-        itemCount: calcResult.itemCount,
         soldItemIds: calcResult.soldItemIds,
       })
       if (rpcResult.error !== null) throw new AppError('INTERNAL', rpcResult.error)

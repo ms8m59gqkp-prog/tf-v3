@@ -69,7 +69,7 @@ export async function createWithItems(params: {
   sellerId: string; periodStart: string; periodEnd: string
   totalSales: number; commissionRate: number; commissionAmount: number
   returnDeduction: number; settlementAmount: number
-  itemCount: number; soldItemIds: string[]
+  soldItemIds: string[]
 }): Promise<DbResult<Settlement>> {
   const client = createAdminClient()
   const { data, error } = await client.rpc(
@@ -78,8 +78,8 @@ export async function createWithItems(params: {
       p_seller_id: params.sellerId, p_period_start: params.periodStart,
       p_period_end: params.periodEnd, p_total_sales: params.totalSales,
       p_commission_rate: params.commissionRate, p_commission_amount: params.commissionAmount,
-      p_return_deduction: params.returnDeduction, p_settlement_amount: params.settlementAmount,
-      p_item_count: params.itemCount, p_sold_item_ids: params.soldItemIds,
+      p_settlement_amount: params.settlementAmount, p_sold_item_ids: params.soldItemIds,
+      p_return_deduction: params.returnDeduction,
     } as never,
   )
   if (error) return { data: null, error: error.message }
@@ -103,7 +103,7 @@ export async function fail(
   // RETURNS SETOF → Supabase는 배열 반환
   const rows = data as unknown as Record<string, unknown>[]
   if (!Array.isArray(rows) || rows.length === 0) {
-    return { data: null, error: `실패 처리 불가: ID ${id} (expected: ${expectedCurrent})` }
+    return { data: null, error: `실패 처리 불가: 정산을 찾을 수 없거나 상태가 일치하지 않습니다` }
   }
   return { data: mapRow(rows[0]), error: null }
 }

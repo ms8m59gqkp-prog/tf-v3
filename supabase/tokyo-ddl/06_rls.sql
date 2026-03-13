@@ -67,11 +67,15 @@ CREATE POLICY "service_all_uploads" ON public.excel_uploads
   USING ((auth.role() = 'service_role'::text));
 
 -- ---------------------------------------------------------------------------
--- market_prices (2 policies)
+-- market_prices (3 policies)
 -- ---------------------------------------------------------------------------
-CREATE POLICY "Allow service write market_prices" ON public.market_prices
+CREATE POLICY "service_all_market_prices" ON public.market_prices
   FOR ALL TO public
-  USING (true) WITH CHECK (true);
+  USING (auth.role() = 'service_role');
+
+CREATE POLICY "admin_all_market_prices" ON public.market_prices
+  FOR ALL TO public
+  USING ((auth.jwt() ->> 'role') = 'admin');
 
 CREATE POLICY "Allow public read market_prices" ON public.market_prices
   FOR SELECT TO public
@@ -89,11 +93,15 @@ CREATE POLICY "admin_all_mismatches" ON public.mismatches
   USING (((auth.jwt() ->> 'role'::text) = 'admin'::text));
 
 -- ---------------------------------------------------------------------------
--- order_items (1 policy)
+-- order_items (2 policies)
 -- ---------------------------------------------------------------------------
-CREATE POLICY "Allow all" ON public.order_items
+CREATE POLICY "service_all_order_items" ON public.order_items
   FOR ALL TO public
-  USING (true) WITH CHECK (true);
+  USING (auth.role() = 'service_role');
+
+CREATE POLICY "admin_all_order_items" ON public.order_items
+  FOR ALL TO public
+  USING ((auth.jwt() ->> 'role') = 'admin');
 
 -- ---------------------------------------------------------------------------
 -- orders (2 policies)
@@ -107,18 +115,26 @@ CREATE POLICY "orders_anon_read" ON public.orders
   USING (((hold_token IS NOT NULL) AND (hold_token = ((current_setting('request.headers'::text, true))::json ->> 'x-hold-token'::text))));
 
 -- ---------------------------------------------------------------------------
--- photo_uploads (1 policy)
+-- photo_uploads (2 policies)
 -- ---------------------------------------------------------------------------
-CREATE POLICY "Allow all" ON public.photo_uploads
+CREATE POLICY "service_all_photo_uploads" ON public.photo_uploads
   FOR ALL TO public
-  USING (true) WITH CHECK (true);
+  USING (auth.role() = 'service_role');
+
+CREATE POLICY "admin_all_photo_uploads" ON public.photo_uploads
+  FOR ALL TO public
+  USING ((auth.jwt() ->> 'role') = 'admin');
 
 -- ---------------------------------------------------------------------------
--- photos (1 policy)
+-- photos (2 policies)
 -- ---------------------------------------------------------------------------
-CREATE POLICY "Allow all" ON public.photos
+CREATE POLICY "service_all_photos" ON public.photos
   FOR ALL TO public
-  USING (true) WITH CHECK (true);
+  USING (auth.role() = 'service_role');
+
+CREATE POLICY "admin_all_photos" ON public.photos
+  FOR ALL TO public
+  USING ((auth.jwt() ->> 'role') = 'admin');
 
 -- ---------------------------------------------------------------------------
 -- price_estimate_cache (1 policy)
@@ -128,11 +144,15 @@ CREATE POLICY "service role full access" ON public.price_estimate_cache
   USING ((auth.role() = 'service_role'::text));
 
 -- ---------------------------------------------------------------------------
--- price_references (2 policies)
+-- price_references (3 policies)
 -- ---------------------------------------------------------------------------
-CREATE POLICY "Allow service write price_references" ON public.price_references
+CREATE POLICY "service_all_price_references" ON public.price_references
   FOR ALL TO public
-  USING (true) WITH CHECK (true);
+  USING (auth.role() = 'service_role');
+
+CREATE POLICY "admin_all_price_references" ON public.price_references
+  FOR ALL TO public
+  USING ((auth.jwt() ->> 'role') = 'admin');
 
 CREATE POLICY "Allow public read price_references" ON public.price_references
   FOR SELECT TO public

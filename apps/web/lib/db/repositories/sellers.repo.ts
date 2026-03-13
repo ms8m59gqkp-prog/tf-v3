@@ -69,7 +69,6 @@ export async function listActive(): Promise<DbResult<Seller[]>> {
   if (error) return { data: null, error: error.message }
   return { data: (data as unknown as Record<string, unknown>[]).map(mapRow), error: null }
 }
-
 export async function create(input: CreateSellerInput): Promise<DbResult<Seller>> {
   const client = createAdminClient()
   const { data: code, error: rpcErr } = await client.rpc(

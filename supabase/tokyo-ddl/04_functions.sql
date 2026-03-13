@@ -84,7 +84,8 @@ CREATE OR REPLACE FUNCTION create_settlement_with_items(
   p_commission_rate numeric,
   p_commission_amount numeric,
   p_settlement_amount numeric,
-  p_sold_item_ids uuid[]
+  p_sold_item_ids uuid[],
+  p_return_deduction numeric DEFAULT 0
 ) RETURNS uuid AS $$
 DECLARE
   v_settlement_id uuid;
@@ -109,11 +110,11 @@ BEGIN
   INSERT INTO settlements (
     seller_id, settlement_period_start, settlement_period_end,
     total_sales, commission_rate, commission_amount, settlement_amount,
-    item_count, status
+    return_deduction, item_count, status
   ) VALUES (
     p_seller_id, p_period_start, p_period_end,
     p_total_sales, p_commission_rate, p_commission_amount, p_settlement_amount,
-    v_expected_count, 'draft'
+    COALESCE(p_return_deduction, 0), v_expected_count, 'draft'
   ) RETURNING id INTO v_settlement_id;
 
   INSERT INTO settlement_items (settlement_id, sold_item_id)
