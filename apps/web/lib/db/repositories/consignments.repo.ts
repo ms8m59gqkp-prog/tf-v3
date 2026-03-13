@@ -15,7 +15,8 @@ const COLUMNS = `id, seller_id, product_name, desired_price, product_condition,
   status, approved_at, product_id, source, memo, created_at, updated_at,
   image_url, applied_at, employee_purchase_date, privacy_consent,
   product_number, received_at, inspected_at, measurements, item_type,
-  inspection_image, adjustment_token, adjustment_price, seller_response,
+  inspection_image, adjustment_token, adjustment_token_expires_at,
+  adjustment_price, seller_response,
   seller_counter_price, origin, composition` as const
 
 /** JOIN 셀러 + 상품 (PostgREST FK 자동 JOIN) */
@@ -54,6 +55,7 @@ function mapRow(row: Record<string, unknown>): ConsignmentRequest {
     itemType: (row.item_type as string) ?? null,
     inspectionImage: (row.inspection_image as string) ?? null,
     adjustmentToken: (row.adjustment_token as string) ?? null,
+    adjustmentTokenExpiresAt: (row.adjustment_token_expires_at as string) ?? null,
     adjustmentPrice: (row.adjustment_price as number) ?? null,
     sellerResponse: (row.seller_response as ConsignmentRequest['sellerResponse']) ?? null,
     sellerCounterPrice: (row.seller_counter_price as number) ?? null,
@@ -86,8 +88,9 @@ export { COLUMNS, JOIN_COLUMNS, mapRow, mapJoinRow }
 export async function findById(id: string): Promise<DbResult<ConsignmentWithRelations>> {
   const client = createAdminClient()
   const { data, error } = await client
-    .from('consignment_requests').select(JOIN_COLUMNS).eq('id', id).single()
+    .from('consignment_requests').select(JOIN_COLUMNS).eq('id', id).maybeSingle()
   if (error) return { data: null, error: error.message }
+  if (!data) return { data: null, error: 'NOT_FOUND: 위탁 요청을 찾을 수 없습니다' }
   return { data: mapJoinRow(data as Record<string, unknown>), error: null }
 }
 

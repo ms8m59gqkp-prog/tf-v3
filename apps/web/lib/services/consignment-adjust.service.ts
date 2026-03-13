@@ -22,7 +22,10 @@ export interface AdjustmentView {
 export async function getByToken(token: string): Promise<AdjustmentView> {
   const result = await adjustRepo.findByToken(token)
   if (result.error !== null) {
-    throw new AppError('NOT_FOUND', '유효하지 않은 토큰입니다')
+    if (result.error.startsWith('NOT_FOUND:')) {
+      throw new AppError('NOT_FOUND', '유효하지 않은 토큰입니다')
+    }
+    throw new AppError('INTERNAL', result.error)
   }
 
   const c = result.data
@@ -44,7 +47,10 @@ export async function respondToAdjust(
 ): Promise<AdjustmentView> {
   const result = await adjustRepo.findByToken(token)
   if (result.error !== null) {
-    throw new AppError('NOT_FOUND', '유효하지 않은 토큰입니다')
+    if (result.error.startsWith('NOT_FOUND:')) {
+      throw new AppError('NOT_FOUND', '유효하지 않은 토큰입니다')
+    }
+    throw new AppError('INTERNAL', result.error)
   }
 
   const c = result.data

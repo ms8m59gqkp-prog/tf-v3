@@ -6,7 +6,7 @@
  */
 import { createAdminClient } from '../../supabase/admin'
 import type { SalesRecord, MatchStatus } from '../../types/domain/settlement'
-import type { DbResult } from '../types'
+import type { DbResult, DbListResult, PageOptions } from '../types'
 import { COLUMNS, mapRow } from './sales-records.repo'
 
 export async function listUnmatched(batchIds?: string[]): Promise<DbResult<SalesRecord[]>> {
@@ -56,6 +56,26 @@ export async function deleteBySessionId(sessionId: string): Promise<DbResult<num
     .eq('match_status', 'unmatched')
   if (error) return { data: null, error: error.message }
   return { data: count ?? 0, error: null }
+}
+
+export async function list(
+  pageOptions?: PageOptions,
+): Promise<DbListResult<SalesRecord>> {
+  const client = createAdminClient()
+  const query = client.from('sales_records').select(COLUMNS, { count: 'exact' })
+    .order('sale_date', { ascending: false })
+  if (pageOptions) {
+    const from = (pageOptions.page - 1) * pageOptions.pageSize
+    query.range(from, from + pageOptions.pageSize - 1)
+  } else {
+    query.range(0, 4999)
+  }
+  const { data, error, count } = await query
+  if (error) return { data: [], total: 0, error: error.message }
+  return {
+    data: (data as unknown as Record<string, unknown>[]).map(mapRow),
+    total: count ?? 0, error: null,
+  }
 }
 
 export async function listByBatch(batchId: string): Promise<DbResult<SalesRecord[]>> {

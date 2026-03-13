@@ -12,7 +12,7 @@ import type { DbResult, DbListResult, PageOptions } from '../types'
 const ORDER_COLUMNS = `id, order_number, customer_name, phone, address, postal_code,
   visit_date, arrival_date, box_qty, total_estimated, commission, final_payout,
   status, created_at, updated_at, seller_type, purchase_source,
-  custom_commission_rate, hold_token` as const
+  custom_commission_rate, hold_token, hold_token_expires_at` as const
 
 /** DDL order_items 23컬럼 전체 */
 const ORDER_ITEM_COLUMNS = `id, order_id, product_number, brand, model, category,
@@ -47,6 +47,7 @@ function mapOrderRow(row: Record<string, unknown>): Order {
     customCommissionRate: row.custom_commission_rate != null
       ? Number(row.custom_commission_rate) : null,
     holdToken: (row.hold_token as string) ?? null,
+    holdTokenExpiresAt: (row.hold_token_expires_at as string) ?? null,
   }
 }
 
@@ -88,12 +89,12 @@ function mapOrderWithItems(row: Record<string, unknown>): OrderWithItems {
 }
 
 export { JOIN_SELECT, mapOrderWithItems }
-
 export async function findById(id: string): Promise<DbResult<OrderWithItems>> {
   const client = createAdminClient()
   const { data, error } = await client
-    .from('orders').select(JOIN_SELECT).eq('id', id).single()
+    .from('orders').select(JOIN_SELECT).eq('id', id).maybeSingle()
   if (error) return { data: null, error: error.message }
+  if (!data) return { data: null, error: 'NOT_FOUND: 주문을 찾을 수 없습니다' }
   return { data: mapOrderWithItems(data as unknown as Record<string, unknown>), error: null }
 }
 interface OrderFilters { status?: string; search?: string }

@@ -19,7 +19,7 @@ export interface HoldOrderView {
   items: OrderItem[]
 }
 
-/** hold_token 기반으로 주문 + 보류 아이템 조회 */
+/** hold_token 기반으로 주문 + 보류 아이템 조회 (만료 체크 포함) */
 export async function findByHoldToken(
   token: string,
 ): Promise<DbResult<HoldOrderView>> {
@@ -28,10 +28,15 @@ export async function findByHoldToken(
     .from('orders')
     .select(`${ORDER_COLUMNS}, order_items(${ORDER_ITEM_COLUMNS})`)
     .eq('hold_token', token)
-    .single()
+    .maybeSingle()
   if (error) return { data: null, error: error.message }
-
+  if (!data) return { data: null, error: 'NOT_FOUND: 유효하지 않은 토큰입니다' }
   const row = data as unknown as Record<string, unknown>
+  /* expires_at NULL = 만료 미설정(영구 유효). .or() 금지(§5.2)로 JS 체크 */
+  const expiresAt = row.hold_token_expires_at as string | null
+  if (expiresAt && new Date(expiresAt) < new Date()) {
+    return { data: null, error: 'NOT_FOUND: 유효하지 않은 토큰입니다' }
+  }
   const order = mapOrderRow(row)
   const rawItems = (row.order_items as unknown as Record<string, unknown>[]) ?? []
   const items = rawItems.map(mapOrderItemRow)

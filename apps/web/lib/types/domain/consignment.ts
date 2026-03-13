@@ -49,6 +49,7 @@ export interface ConsignmentRequest {
   itemType?: string | null
   inspectionImage?: string | null
   adjustmentToken?: string | null
+  adjustmentTokenExpiresAt?: string | null
   adjustmentPrice?: number | null
   sellerResponse?: SellerResponse | null
   sellerCounterPrice?: number | null

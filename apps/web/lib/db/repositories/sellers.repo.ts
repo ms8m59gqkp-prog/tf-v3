@@ -49,11 +49,11 @@ function mapRow(row: Record<string, unknown>): Seller {
 
 export { mapRow, COLUMNS }
 interface CreateSellerInput { name: string; phone: string; address?: string; status?: string }
-
 export async function findById(id: string): Promise<DbResult<Seller>> {
   const client = createAdminClient()
-  const { data, error } = await client.from('sellers').select(COLUMNS).eq('id', id).single()
+  const { data, error } = await client.from('sellers').select(COLUMNS).eq('id', id).maybeSingle()
   if (error) return { data: null, error: error.message }
+  if (!data) return { data: null, error: 'NOT_FOUND: 셀러를 찾을 수 없습니다' }
   return { data: mapRow(data as unknown as Record<string, unknown>), error: null }
 }
 

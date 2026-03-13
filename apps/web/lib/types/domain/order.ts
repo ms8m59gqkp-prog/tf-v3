@@ -57,6 +57,7 @@ export interface Order {
   purchaseSource?: string | null
   customCommissionRate?: number | null
   holdToken?: string | null
+  holdTokenExpiresAt?: string | null
 }
 
 export interface OrderItem {

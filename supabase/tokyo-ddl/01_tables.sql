@@ -60,6 +60,7 @@ CREATE TABLE consignment_requests (
   item_type TEXT,
   inspection_image TEXT,
   adjustment_token TEXT,
+  adjustment_token_expires_at TIMESTAMPTZ,
   adjustment_price INTEGER,
   seller_response TEXT,
   seller_counter_price INTEGER,
@@ -228,6 +229,7 @@ CREATE TABLE orders (
   purchase_source TEXT,
   custom_commission_rate NUMERIC(5,4),
   hold_token TEXT,
+  hold_token_expires_at TIMESTAMPTZ,
   PRIMARY KEY (id)
 );
 

@@ -98,7 +98,15 @@ export async function deleteBySession(sessionId: string): Promise<number> {
   return result.data
 }
 
-/* ─── 4. detectConsignmentSales ─── */
+/* ─── 4. listLedger ─── */
+
+export async function listLedger(page: number, pageSize: number) {
+  const result = await salesRecordsQueryRepo.list({ page, pageSize })
+  if (result.error !== null) throw new AppError('INTERNAL', result.error)
+  return { data: result.data, total: result.total }
+}
+
+/* ─── 5. detectConsignmentSales ─── */
 
 export async function detectConsignmentSales(batchId: string): Promise<DetectResult> {
   const result = await salesRecordsQueryRepo.listByBatch(batchId)

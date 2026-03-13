@@ -56,7 +56,7 @@ export const dateSchema = z
 
 /** 페이지네이션 검증 — 라우트 쿼리파라미터용 */
 export const pageSchema = z.object({
-  page: z.coerce.number().int().min(1).default(1),
+  page: z.coerce.number().int().min(1).max(10000).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
 })
 

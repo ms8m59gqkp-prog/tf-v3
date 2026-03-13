@@ -7,6 +7,7 @@
 import { AppError } from '../errors'
 import * as holdRepo from '../db/repositories/order-hold.repo'
 import type { OrderItem } from '../types/domain/order'
+import { maskName } from '../utils/privacy'
 
 /** 고객에게 노출할 안전한 아이템 필드 */
 export interface HoldItemView {
@@ -48,13 +49,16 @@ function toItemView(item: OrderItem): HoldItemView {
 export async function getByToken(token: string): Promise<HoldOrderPublicView> {
   const result = await holdRepo.findByHoldToken(token)
   if (result.error !== null) {
-    throw new AppError('NOT_FOUND', '유효하지 않은 토큰입니다')
+    if (result.error.startsWith('NOT_FOUND:')) {
+      throw new AppError('NOT_FOUND', '유효하지 않은 토큰입니다')
+    }
+    throw new AppError('INTERNAL', result.error)
   }
 
   const { order, items } = result.data
   return {
     orderNumber: order.orderNumber,
-    customerName: order.customerName,
+    customerName: maskName(order.customerName),
     items: items.map(toItemView),
   }
 }
@@ -67,7 +71,10 @@ export async function respondToHold(
 ): Promise<HoldItemView> {
   const result = await holdRepo.findByHoldToken(token)
   if (result.error !== null) {
-    throw new AppError('NOT_FOUND', '유효하지 않은 토큰입니다')
+    if (result.error.startsWith('NOT_FOUND:')) {
+      throw new AppError('NOT_FOUND', '유효하지 않은 토큰입니다')
+    }
+    throw new AppError('INTERNAL', result.error)
   }
 
   const item = result.data.items.find((i) => i.id === itemId)

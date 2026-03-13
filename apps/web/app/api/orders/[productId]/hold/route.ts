@@ -15,7 +15,10 @@ function getIp(req: NextRequest): string {
   return req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
 }
 
-export async function GET(req: NextRequest) {
+export async function GET(
+  req: NextRequest,
+  ctx: { params: Promise<{ productId: string }> },
+) {
   try {
     const { allowed } = checkRateLimit(getIp(req))
     if (!allowed) return rateLimitErr()
@@ -24,7 +27,11 @@ export async function GET(req: NextRequest) {
     const check = tokenSchema.safeParse(token)
     if (!check.success) return validationErr('유효하지 않은 토큰입니다')
 
+    const { productId } = await ctx.params
     const result = await holdService.getByToken(token)
+    if (!result.items.some(i => i.productNumber === productId)) {
+      return validationErr('해당 상품을 찾을 수 없습니다')
+    }
     return ok(result)
   } catch (e) { return errFrom(e) }
 }

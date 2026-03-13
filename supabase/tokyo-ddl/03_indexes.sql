@@ -75,7 +75,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS order_items_product_id_key ON public.order_ite
 -- orders
 -- ---------------------------------------------------------------------------
 CREATE INDEX IF NOT EXISTS idx_orders_created_at ON public.orders USING btree (created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_orders_hold_token ON public.orders USING btree (hold_token) WHERE (hold_token IS NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS orders_hold_token_key ON public.orders USING btree (hold_token) WHERE (hold_token IS NOT NULL);
 CREATE UNIQUE INDEX IF NOT EXISTS orders_order_number_key ON public.orders USING btree (order_number);
 CREATE INDEX IF NOT EXISTS idx_orders_status ON public.orders USING btree (status);
 CREATE INDEX IF NOT EXISTS idx_orders_order_number ON public.orders USING btree (order_number);
