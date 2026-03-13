@@ -22,4 +22,14 @@ export const GenerateSettlementSchema = z.object({
     return diffMs <= MAX_PERIOD_DAYS * 24 * 60 * 60 * 1000
   },
   { message: `정산 기간은 최대 ${MAX_PERIOD_DAYS}일을 초과할 수 없습니다`, path: ['periodEnd'] },
+).refine(
+  (data) => {
+    const end = new Date(data.periodEnd)
+    const now = new Date()
+    now.setHours(23, 59, 59, 999)
+    const oneYearAgo = new Date()
+    oneYearAgo.setFullYear(now.getFullYear() - 1)
+    return new Date(data.periodStart) >= oneYearAgo && end <= now
+  },
+  { message: '정산 기간은 최근 1년 이내여야 하며 미래 날짜는 불가합니다', path: ['periodStart'] },
 )
